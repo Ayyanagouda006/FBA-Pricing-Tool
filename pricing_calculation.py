@@ -240,13 +240,21 @@ def console_lmservice(category, fpod, des_val, pallets, quote_cbm):
     return "", "not selected", []
 
 
-def rates(origin,cleaned_data,console_type,is_occ,is_dcc,des_val,service_modes,shipment_scope,pickup_charges):
+def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_modes, shipment_scope, pickup_charges):
+    if shipment_scope == "Door-to-Door":
+        if pickup_charges in [0.0, "0.0", "", None]:
+            return {}, ["Pickup charges are required for Door-to-Door shipment scope."]
+
     # Load Excel sheets
-    fba_locations = pd.read_excel(r"Data/FBA Rates.xlsx", 'FBA Locations')
-    p2p = pd.read_excel(r"Data/FBA Rates.xlsx", 'P2P')
-    accessorials = pd.read_excel(r"Data/FBA Rates.xlsx", 'Accessorials')
+    try:
+        fba_locations = pd.read_excel(r"Data/FBA Rates.xlsx", 'FBA Locations')
+        p2p = pd.read_excel(r"Data/FBA Rates.xlsx", 'P2P')
+        accessorials = pd.read_excel(r"Data/FBA Rates.xlsx", 'Accessorials')
+    except Exception as e:
+        return {}, [f"❌ Failed to load one or more Excel sheets: {e}"]
 
     results = {}
+    errors = []
 
     for dest in cleaned_data:
         destination_name = dest.get("destination", "")
@@ -259,151 +267,172 @@ def rates(origin,cleaned_data,console_type,is_occ,is_dcc,des_val,service_modes,s
         total_cbm = 0.0
 
         for item in cargo_details:
-            package = item.get("packageType", "")
-            item_qty = int(item.get("numPackages", 0))
-            item_weight = float(item.get("totalWeight", 0.0))
-            item_cbm = float(item.get("totalVolume", 0.0))  # fallback logic
+            try:
+                package = item.get("packageType", "")
+                item_qty = int(item.get("numPackages", 0))
+                item_weight = float(item.get("totalWeight", 0.0))
+                item_cbm = float(item.get("totalVolume", 0.0))
 
-            qty += item_qty
-            weight += item_weight
-            total_cbm += item_cbm
+                qty += item_qty
+                weight += item_weight
+                total_cbm += item_cbm
 
-            if package.lower() == "pallet":
-                pallets += item_qty
-            else:
-                loose_cbm += item_cbm
+                if package.lower() == "pallet":
+                    pallets += item_qty
+                else:
+                    loose_cbm += item_cbm
+            except Exception as e:
+                errors.append(f"❌ Error parsing cargo for {destination_name}: {e}")
+                continue
 
-        # Convert loose cbm to pallet equivalents
         loose_as_pallets = ceil(loose_cbm / 1.8)
-
-        # Final total pallet count
         total_pallet_count = pallets + loose_as_pallets
 
         fba_code = destination_name.split(" ")[0]
         sub_fba_locations = fba_locations[fba_locations['FBA Code'] == fba_code]
 
-        if not sub_fba_locations.empty:
+        if sub_fba_locations.empty:
+            errors.append(f"⚠️ FBA Code {fba_code} not found in FBA Locations sheet.")
+            continue
+
+        try:
             category = classify_fba_code(fba_locations, fba_code, total_cbm)
-            for i, row in sub_fba_locations.iterrows():
-                fpod_zip = str(row['FPOD ZIP']).zfill(5)
-                fpod_city = row['FPOD CITY']
-                fpod_unloc = row['FPOD UNLOC']
-                fpod_st_code = row['FPOD STATE CODE']
-                fba_zip = str(row['FBA ZIP']).zfill(5)
-                fba_city = row['FBA CITY']
-                fba_st_code = row['FBA STATE CODE']
+        except Exception as e:
+            category = "Unknown"
+            errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
 
-                condition,console,service_mode = console_lmservice(category, fpod_unloc, des_val, total_pallet_count, total_cbm)
+        for i, row in sub_fba_locations.iterrows():
+            # try:
+            fpod_zip = str(row['FPOD ZIP']).zfill(5)
+            fpod_city = row['FPOD CITY']
+            fpod_unloc = row['FPOD UNLOC']
+            fpod_st_code = row['FPOD STATE CODE']
+            fba_zip = str(row['FBA ZIP']).zfill(5)
+            fba_city = row['FBA CITY']
+            fba_st_code = row['FBA STATE CODE']
 
-                if console_type == "not selected":
-                    console_type = console
-                if service_modes == []:
-                    service_modes = service_mode
+            condition, console, service_mode = console_lmservice(
+                category, fpod_unloc, des_val, total_pallet_count, total_cbm
+            )
 
-                ltl,ftl,ftl53,drayage,lowest,selected_lowest = rates_comparison(fpod_city, fpod_st_code, 
-                                                                                fpod_zip, fba_city, fba_st_code, 
-                                                                                fba_zip, total_pallet_count, weight, service_modes)
-                # Filter P2P data
-                if console_type.lower() == "not selected":
-                    sub_p2p = p2p[p2p['FPOD UNLOC'] == fpod_unloc]
-                else:
-                    sub_p2p = p2p[
-                        (p2p['FPOD UNLOC'] == fpod_unloc) &
-                        (p2p['P2P Type'].str.lower() == console_type.lower())
-                    ]
+            if console_type == "not selected" and console_type != "both selected":
+                console_type = console
+            if service_modes == []:
+                service_modes = service_mode
 
-                if not sub_p2p.empty:
-                    for j, prow in sub_p2p.iterrows():
-                        pol = prow['POL Name']
-                        pol_unloc = prow['POR/POL']
-                        percbm_p2p = prow['Per CBM(USD)']
-                        total_p2p = percbm_p2p * total_cbm
-                        console = prow['P2P Type']
+            try:
+                ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
+                    fpod_city, fpod_st_code, fpod_zip,
+                    fba_city, fba_st_code, fba_zip,
+                    total_pallet_count, weight, service_modes
+                )
+            except Exception as e:
+                errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
+                continue
 
-                        if shipment_scope == "Port-to-Door":
+            if console_type.lower() == "both selected":
+                sub_p2p = p2p[p2p['FPOD UNLOC'] == fpod_unloc]
+            else:
+                sub_p2p = p2p[
+                    (p2p['FPOD UNLOC'] == fpod_unloc) &
+                    (p2p['P2P Type'].str.lower() == console_type.lower())
+                ]
+
+            if sub_p2p.empty:
+                errors.append(f"⚠️ No P2P match found for FPOD {fpod_unloc}, console type: {console_type}")
+                continue
+
+
+            for j, prow in sub_p2p.iterrows():
+                try:
+                    pol = prow['POL Name']
+                    pol_unloc = prow['POR/POL']
+                    percbm_p2p = prow['Per CBM(USD)']
+                    total_p2p = percbm_p2p * total_cbm
+                    console = prow['P2P Type']
+
+                    if shipment_scope == "Port-to-Door":
+                        try:
                             origin_unloc = re.search(r'\((.*?)\)', origin).group(1)
-                            if pol_unloc != origin_unloc:
-                                continue
+                        except Exception as e:
+                            errors.append(f"⚠️ Failed to parse POL from origin string '{origin}': {e}")
+                            continue
 
-                        if destination_name not in results:
-                            results[destination_name] = {}
+                        if pol_unloc != origin_unloc:
+                            continue
 
-                        pod_doc = accessorials[(accessorials['Location Unloc'] == fpod_unloc) & 
-                                               (accessorials['Charge Head']=='Documentation')]['Amount'].values[0]
+                    try:
+                        pod_doc = accessorials[
+                            (accessorials['Location Unloc'] == fpod_unloc) & 
+                            (accessorials['Charge Head'] == 'Documentation')
+                        ]['Amount'].values[0]
+                    except IndexError:
+                        errors.append(f"⚠️ Documentation charge missing for {fpod_unloc}")
+                        pod_doc = 0
+
+                    try:
+                        occ = accessorials[
+                            (accessorials['Location Unloc'] == pol_unloc) & 
+                            (accessorials['Charge Head'] == 'OCC')
+                        ]['Amount'].values[0] if is_occ else 0
+                    except IndexError:
                         if is_occ:
-                            occ = accessorials[(accessorials['Location Unloc'] == pol_unloc) & 
-                                               (accessorials['Charge Head']=='OCC')]['Amount'].values[0]
-                        else:
-                            occ = 0
-                        
-                        if is_dcc:
-                            dcc = accessorials[(accessorials['Location Unloc'] == fpod_unloc) & 
-                                               (accessorials['Charge Head']=='DCC')]['Amount'].values[0]
-                        else:
-                            dcc = 0
+                            errors.append(f"⚠️ OCC charge missing for {pol_unloc}")
+                        occ = 0
 
-                        if shipment_scope == "Door-to-Door":
-                            gtotal = float(selected_lowest["Rate"])+float(total_p2p)+float(pod_doc)+float(occ)+float(dcc)+float(pickup_charges)
-                            tot_pcbm = gtotal/total_cbm
-                            results[destination_name][console] = {
-                                "Origin":origin,
-                                "POL": pol,
-                                "POD": fpod_city,
-                                "POD Zip": fpod_zip,
-                                "FBA Code": fba_code,
-                                "Qty": qty,
-                                "Total Weight": weight,
-                                "Total CBM": total_cbm,
-                                "Total Pallets": total_pallet_count,
-                                "category": category,
-                                "Service Modes": service_modes,
-                                "condition":condition,
-                                "LTL": ltl,
-                                "FTL": ftl,
-                                "FTL53": ftl53,
-                                "Drayage": drayage,
-                                'lowest lm': lowest,
-                                'Selected lm': selected_lowest,
-                                "Pick-Up Charges": pickup_charges,
-                                "PER CBM P2P": percbm_p2p,
-                                "P2P Charge": total_p2p,
-                                "Destination Doc": float(pod_doc),
-                                "OCC": float(occ),
-                                "DCC": float(dcc),
-                                "Documentation": float(pod_doc),
-                                "Last Mile Rate": selected_lowest["Rate"],
-                                "Total Cost": gtotal,
-                                "Total per cbm": tot_pcbm
-                            }
-                        else:
-                            gtotal = float(selected_lowest["Rate"])+float(total_p2p)+float(pod_doc)+float(occ)+float(dcc)
-                            tot_pcbm = gtotal/total_cbm
-                            results[destination_name][console] = {
-                                "POL": pol,
-                                "POD": fpod_city,
-                                "POD Zip": fpod_zip,
-                                "FBA Code": fba_code,
-                                "Qty": qty,
-                                "Total Weight": weight,
-                                "Total CBM": total_cbm,
-                                "Total Pallets": total_pallet_count,
-                                "category": category,
-                                "Service Modes": service_modes,
-                                "condition":condition,
-                                "LTL": ltl,
-                                "FTL": ftl,
-                                "FTL53": ftl53,
-                                "Drayage": drayage,
-                                'lowest lm': lowest,
-                                'Selected lm': selected_lowest,
-                                "PER CBM P2P": percbm_p2p,
-                                "P2P Charge": total_p2p,
-                                "Destination Doc": float(pod_doc),
-                                "OCC": float(occ),
-                                "DCC": float(dcc),
-                                "Documentation": float(pod_doc),
-                                "Last Mile Rate": selected_lowest["Rate"],
-                                "Total Cost": gtotal,
-                                "Total per cbm": tot_pcbm
-                            }
-    return results
+                    try:
+                        dcc = accessorials[
+                            (accessorials['Location Unloc'] == fpod_unloc) & 
+                            (accessorials['Charge Head'] == 'DCC')
+                        ]['Amount'].values[0] if is_dcc else 0
+                    except IndexError:
+                        if is_dcc:
+                            errors.append(f"⚠️ DCC charge missing for {fpod_unloc}")
+                        dcc = 0
+
+                    if destination_name not in results:
+                        results[destination_name] = {}
+
+                    if shipment_scope == "Door-to-Door":
+                        gtotal = float(selected_lowest["Rate"]) + float(total_p2p) + float(pod_doc) + float(occ) + float(dcc) + float(pickup_charges)
+                    else:
+                        gtotal = float(selected_lowest["Rate"]) + float(total_p2p) + float(pod_doc) + float(occ) + float(dcc)
+
+                    tot_pcbm = gtotal / total_cbm if total_cbm else 0
+
+                    results[destination_name][console] = {
+                        "Origin": origin,
+                        "POL": pol,
+                        "POD": fpod_city,
+                        "POD Zip": fpod_zip,
+                        "FBA Code": fba_code,
+                        "Qty": qty,
+                        "Total Weight": weight,
+                        "Total CBM": total_cbm,
+                        "Total Pallets": total_pallet_count,
+                        "category": category,
+                        "Service Modes": service_modes,
+                        "condition": condition,
+                        "LTL": ltl,
+                        "FTL": ftl,
+                        "FTL53": ftl53,
+                        "Drayage": drayage,
+                        'lowest lm': lowest,
+                        'Selected lm': selected_lowest,
+                        "Pick-Up Charges": pickup_charges,
+                        "PER CBM P2P": percbm_p2p,
+                        "P2P Charge": total_p2p,
+                        "Destination Doc": float(pod_doc),
+                        "OCC": float(occ),
+                        "DCC": float(dcc),
+                        "Documentation": float(pod_doc),
+                        "Last Mile Rate": selected_lowest["Rate"],
+                        "Total Cost": gtotal,
+                        "Total per cbm": tot_pcbm
+                    }
+                except Exception as e:
+                    errors.append(f"❌ Error processing P2P row for {destination_name}: {e}")
+            # except Exception as e:
+            #     errors.append(f"❌ Error processing FBA row for {destination_name}: {e}")
+
+    return results, errors

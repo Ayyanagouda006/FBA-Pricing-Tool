@@ -181,9 +181,7 @@ def fba_quote_app():
 
             submit = st.form_submit_button("🔎 Get Rates")
 
-    # ----------------- Right Column -----------------
     with right_col:
-
         if submit:
             if not quote_id:
                 st.warning("⚠️ Please enter a valid Ag Quote No. before requesting rates.")
@@ -194,6 +192,8 @@ def fba_quote_app():
                     console_type = "Own Console"
                 elif is_co_load and not is_own_console:
                     console_type = "Coload"
+                elif is_own_console and is_co_load:
+                    console_type = "both selected"
                 else:
                     console_type = "not selected"
 
@@ -214,8 +214,8 @@ def fba_quote_app():
                 st.success("✅ Getting rates based on provided inputs...")
                 cleaned_data = remove_ids(st.session_state.multidest)
 
-                # Call your rate calculation function (adjust as needed)
-                result = rates(
+                # ✅ Updated call with error handling
+                result, errors = rates(
                     origin,
                     cleaned_data,
                     console_type,
@@ -224,29 +224,32 @@ def fba_quote_app():
                     des_val,
                     service_modes,
                     shipment_scope,
-                    pickup_charges  # pass to backend if required
+                    pickup_charges
                 )
 
-                # st.json(result)
+                # ✅ Show errors if any
+                if errors:
+                    st.warning("⚠️ Some issues occurred during rate calculation:")
+                    for msg in errors:
+                        st.markdown(f"- {msg}")
+
+                # ✅ Show rate breakdowns if available
                 for idx, destination in enumerate(result):
                     dest_info = result[destination]
                     st.markdown(f"📍 Destination {idx + 1}: `{destination}`")
 
                     with st.container(border=True):
-                        route_count = 1  # 👈 Reset route count for each destination
+                        route_count = 1
 
                         for console_key in ["Own Console", "Coload"]:
                             if console_key in dest_info:
                                 data = dest_info[console_key]
-                                
-                                # Extract routing info
+
                                 origin = data.get("Origin", "")
                                 pol = data.get("POL", "")
                                 pod = data.get("POD", "")
                                 fba = data.get("FBA Code", "")
                                 cbm_cost = data.get("Total per cbm", "N/A")
-                                
-                                # Construct route string
                                 route_parts = [p for p in [origin, pol, pod, fba] if p]
                                 route_str = " → ".join(route_parts)
 
@@ -261,28 +264,20 @@ def fba_quote_app():
                                     with col2:
                                         st.button("🔍 Review Quote", key=f"review_{idx}_{console_key}")
 
-                                    # Pricing breakdown
+                                    # Totals
                                     total_keys = ["Total Weight", "Total CBM", "Total Pallets", "category"]
-                                    total_rows = []
-                                    for key in total_keys:
-                                        if key in data:
-                                            value = data[key]
-                                            total_rows.append((key, value))
-
+                                    total_rows = [(key, data[key]) for key in total_keys if key in data]
                                     if total_rows:
-                                        total_df = pd.DataFrame(total_rows, columns=["Feild", "Value"])
-                                        st.dataframe(total_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(pd.DataFrame(total_rows, columns=["Feild", "Value"]), use_container_width=True, hide_index=True)
                                     else:
                                         st.info("ℹ️ No total breakdown available.")
 
+                                    # Rate breakdown
                                     rate_keys = [
-                                        "Pick-Up Charges",
-                                        "P2P Charge","Selected lm","OCC","DCC","Documentation",
-                                        "Total Cost", "Total per cbm"
+                                        "Pick-Up Charges", "P2P Charge", "Selected lm",
+                                        "OCC", "DCC", "Documentation", "Total Cost", "Total per cbm"
                                     ]
-
                                     rate_rows = []
-
                                     for key in rate_keys:
                                         if key in data:
                                             value = data[key]
@@ -292,14 +287,13 @@ def fba_quote_app():
                                                 rate_rows.append(("Last mile Service Provider", value.get("Service Provider", "N/A")))
                                             else:
                                                 rate_rows.append((key, value))
-
                                     if rate_rows:
-                                        breakdown_df = pd.DataFrame(rate_rows, columns=["Charge Head", "Value"])
-                                        st.dataframe(breakdown_df, use_container_width=True, hide_index=True)
+                                        st.dataframe(pd.DataFrame(rate_rows, columns=["Charge Head", "Value"]), use_container_width=True, hide_index=True)
                                     else:
                                         st.info("ℹ️ No pricing breakdown available.")
 
-                                route_count += 1  # 👈 Increment per route within the destination
+                                route_count += 1
+
 
 
 
