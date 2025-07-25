@@ -250,6 +250,7 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
         fba_locations = pd.read_excel(r"Data/FBA Rates.xlsx", 'FBA Locations')
         p2p = pd.read_excel(r"Data/FBA Rates.xlsx", 'P2P')
         accessorials = pd.read_excel(r"Data/FBA Rates.xlsx", 'Accessorials')
+        palletization = pd.read_excel(r"Data/FBA Rates.xlsx", 'Palletization')
     except Exception as e:
         return {}, [f"❌ Failed to load one or more Excel sheets: {e}"]
 
@@ -302,7 +303,6 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
             errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
 
         for i, row in sub_fba_locations.iterrows():
-            # try:
             fpod_zip = str(row['FPOD ZIP']).zfill(5)
             fpod_city = row['FPOD CITY']
             fpod_unloc = row['FPOD UNLOC']
@@ -390,22 +390,34 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                             errors.append(f"⚠️ DCC charge missing for {fpod_unloc}")
                         dcc = 0
 
+                    try:
+                        pal_cost = palletization[
+                            (palletization['FPOD UNLOC'] == fpod_unloc) &
+                            (palletization['Service Type'] == 'Palletization cost Per Pallet')
+                        ]['Amount'].values[0]
+                        palletization_cost = float(pal_cost) * total_pallet_count
+                    except IndexError:
+                        errors.append(f"⚠️ Palletization Cost missing for {fpod_unloc}")
+                        palletization_cost = 0.0
+
                     if destination_name not in results:
                         results[destination_name] = {}
 
                     if shipment_scope == "Door-to-Door":
-                        gtotal = float(selected_lowest["Rate"]) + float(total_p2p) + float(pod_doc) + float(occ) + float(dcc) + float(pickup_charges)
+                        gtotal = float(selected_lowest["Rate"]) + float(total_p2p) + float(pod_doc) + float(occ) + float(dcc) + float(pickup_charges) + float(palletization_cost)
                     else:
-                        gtotal = float(selected_lowest["Rate"]) + float(total_p2p) + float(pod_doc) + float(occ) + float(dcc)
+                        gtotal = float(selected_lowest["Rate"]) + float(total_p2p) + float(pod_doc) + float(occ) + float(dcc) + float(palletization_cost)
 
                     tot_pcbm = gtotal / total_cbm if total_cbm else 0
 
                     results[destination_name][console] = {
+                        "Shipment Scope":shipment_scope,
                         "Origin": origin,
                         "POL": pol,
                         "POD": fpod_city,
                         "POD Zip": fpod_zip,
                         "FBA Code": fba_code,
+                        "FBA Zip Code": fba_zip,
                         "Qty": qty,
                         "Total Weight": weight,
                         "Total CBM": total_cbm,
@@ -426,13 +438,12 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                         "OCC": float(occ),
                         "DCC": float(dcc),
                         "Documentation": float(pod_doc),
+                        "Palletization Cost": + float(palletization_cost),
                         "Last Mile Rate": selected_lowest["Rate"],
                         "Total Cost": gtotal,
                         "Total per cbm": tot_pcbm
                     }
                 except Exception as e:
                     errors.append(f"❌ Error processing P2P row for {destination_name}: {e}")
-            # except Exception as e:
-            #     errors.append(f"❌ Error processing FBA row for {destination_name}: {e}")
 
     return results, errors

@@ -1,7 +1,38 @@
 import requests
 import pandas as pd
+from datetime import datetime, date
+import os
+from math import ceil
+
+LOG_FILE = r"Logs/exfreight_api_log.xlsx"
+
+def log_to_excel(log_data):
+    # Create log DataFrame
+    log_df = pd.DataFrame([log_data])
+
+    if os.path.exists(LOG_FILE):
+        existing_df = pd.read_excel(LOG_FILE)
+        final_df = pd.concat([existing_df, log_df], ignore_index=True)
+    else:
+        final_df = log_df
+
+    final_df.to_excel(LOG_FILE, index=False)
+
 
 def exfreight_api(origin, destination, weight, qty):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_data = {
+        "Timestamp": timestamp,
+        "Origin": origin,
+        "Destination": destination,
+        "Weight (kg)": ceil(weight),
+        "Quantity": qty,
+        "Status": "",
+        "Message": "",
+        "Carrier Name": "",
+        "Rate (USD)": ""
+    }
+
     url = "https://exfreight.flipstone.com/api/v2/rating"
 
     headers = {
@@ -14,7 +45,7 @@ def exfreight_api(origin, destination, weight, qty):
         "username": "anshul.marele@agraga.com",
         "pickup": {"country": "US", "postal": origin},
         "delivery": {"country": "US", "postal": destination},
-        "ship_day": "2025-07-22",
+        "ship_day": date.today().strftime("%Y-%m-%d"),
         "ltl": {
             "accessorials": [
                 {"category": "amazon_fba_delivery", "scope": "at_delivery"},
@@ -31,7 +62,7 @@ def exfreight_api(origin, destination, weight, qty):
                         "width": {"unit": "inch", "value": 40}
                     },
                     "is_hazardous": False,
-                    "total_weight": {"unit": "kilogram", "value": weight}
+                    "total_weight": {"unit": "kilogram", "value": ceil(weight)}
                 }
             ]
         },
@@ -39,45 +70,66 @@ def exfreight_api(origin, destination, weight, qty):
         "result_filtering": None
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    try:
+        response = requests.post(url, headers=headers, json=payload)
 
-    if not response.ok:
-        return {"error": f"API error: {response.status_code}", "message": response.text}
+        if not response.ok:
+            log_data["Status"] = "Error"
+            log_data["Message"] = f"{response.status_code} - {response.text}"
+            log_to_excel(log_data)
+            return {"error": f"API error: {response.status_code}", "message": response.text}
 
-    data = response.json()
+        data = response.json()
 
-    if "routes" not in data or not data["routes"]:
-        return {"error": "No routes returned by API", "raw_response": data}
+        if "routes" not in data or not data["routes"]:
+            log_data["Status"] = "Error"
+            log_data["Message"] = "No routes returned by API"
+            log_to_excel(log_data)
+            return {"error": "No routes returned by API", "raw_response": data}
 
-    rows = []
-    for route in data['routes']:
-        try:
-            row = {
-                'Carrier Name': route['legs'][0]['carrier']['name'],
-                'SCAC': route['scac'],
-                'Quote Reference ID': route['bill_of_lading_details'].get('carrier_quote_reference_id'),
-                'Service Description': route['bill_of_lading_details'].get('carrier_service_description'),
-                'Pickup Date': route['legs'][0].get('scheduled_pickup_date'),
-                'Delivery Date': route['legs'][0].get('scheduled_delivery_date'),
-                'Transit Days': route.get('transit_days'),
-                'Total Charge (USD)': route['total_charge']['value'] / 100,
-                'Reliability (%)': route.get('overall_on_time_reliability'),
-                'Valid Until': route.get('valid_until'),
-                'Freight Charge': next((item['charge']['value'] / 100 for item in route['line_item_charges'] if 'Freight' in item['description']), 0),
-                'FBA Delivery Charge': next((item['charge']['value'] / 100 for item in route['line_item_charges'] if 'FBA Delivery' in item['description']), 0),
-            }
-            rows.append(row)
-        except Exception as e:
-            print(f"Error processing route: {e}")
-            continue
+        rows = []
+        for route in data['routes']:
+            try:
+                row = {
+                    'Carrier Name': route['legs'][0]['carrier']['name'],
+                    'SCAC': route['scac'],
+                    'Quote Reference ID': route['bill_of_lading_details'].get('carrier_quote_reference_id'),
+                    'Service Description': route['bill_of_lading_details'].get('carrier_service_description'),
+                    'Pickup Date': route['legs'][0].get('scheduled_pickup_date'),
+                    'Delivery Date': route['legs'][0].get('scheduled_delivery_date'),
+                    'Transit Days': route.get('transit_days'),
+                    'Total Charge (USD)': route['total_charge']['value'] / 100,
+                    'Reliability (%)': route.get('overall_on_time_reliability'),
+                    'Valid Until': route.get('valid_until'),
+                    'Freight Charge': next((item['charge']['value'] / 100 for item in route['line_item_charges'] if 'Freight' in item['description']), 0),
+                    'FBA Delivery Charge': next((item['charge']['value'] / 100 for item in route['line_item_charges'] if 'FBA Delivery' in item['description']), 0),
+                }
+                rows.append(row)
+            except Exception as e:
+                continue
 
-    if not rows:
-        return {"error": "No valid rate rows parsed", "raw_response": data}
+        if not rows:
+            log_data["Status"] = "Error"
+            log_data["Message"] = "No valid rate rows parsed"
+            log_to_excel(log_data)
+            return {"error": "No valid rate rows parsed", "raw_response": data}
 
-    df = pd.DataFrame(rows)
-    best_rate = df.nsmallest(1, 'Total Charge (USD)').iloc[0]
+        df = pd.DataFrame(rows)
+        best_rate = df.nsmallest(1, 'Total Charge (USD)').iloc[0]
 
-    return {
-        "Lowest Rate": best_rate["Total Charge (USD)"],
-        "Carrier Name": best_rate["Carrier Name"]
-    }
+        log_data["Status"] = "Success"
+        log_data["Carrier Name"] = best_rate["Carrier Name"]
+        log_data["Rate (USD)"] = best_rate["Total Charge (USD)"]
+        log_data["Message"] = "Success"
+        log_to_excel(log_data)
+
+        return {
+            "Lowest Rate": best_rate["Total Charge (USD)"],
+            "Carrier Name": best_rate["Carrier Name"]
+        }
+
+    except Exception as e:
+        log_data["Status"] = "Error"
+        log_data["Message"] = str(e)
+        log_to_excel(log_data)
+        return {"error": "Exception occurred", "message": str(e)}
