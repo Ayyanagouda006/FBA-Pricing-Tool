@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from data_fetch import fetch_quote_data
-from pricing_calculation import rates
+from pricing_calculation import rates, summarization
 import pandas as pd
 import os
 
@@ -56,10 +56,6 @@ def log_rate_request(quote_id, console_type, service_modes, result, errors):
     df_logs = pd.concat([df_logs, pd.DataFrame([log_entry])], ignore_index=True)
     df_logs.to_excel(LOG_FILE, index=False)
 
-import os
-import pandas as pd
-from datetime import datetime
-
 def quotations_backup(quote_id, result):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     file_path = "Logs/quotations.xlsx"
@@ -98,7 +94,6 @@ def quotations_backup(quote_id, result):
     print("✅ Quotations updated in:", file_path)
 
 
-    
 def fba_quote_app():
     # ----------------- Session State Init -----------------
     if "form_data_loaded" not in st.session_state:
@@ -153,7 +148,6 @@ def fba_quote_app():
             except Exception as e:
                 st.error(f"❌ Unexpected error while loading quote: {str(e)}")
 
-
         # ----------- Booking Form ------------
         with st.form("shipment_form"):
             r1c1, r1c2, r1c3 = st.columns([1.5, 1, 1.5])
@@ -193,14 +187,15 @@ def fba_quote_app():
 
                 for row_idx, cargo in enumerate(cargo_list):
                     weight_val = safe_float(cargo.get("wtPerPackage", 0.0))
+                    volPerPackage = safe_float(cargo.get("volPerPackage", 0.0))
                     length_val = safe_float(cargo.get("length", 0.0))
                     width_val = safe_float(cargo.get("width", 0.0))
                     height_val = safe_float(cargo.get("height", 0.0))
                     quantity_val = safe_int(cargo.get("numPackages", 0))
                     pkg_type = cargo.get("packageType", "")
 
-                    total_weight = safe_float(cargo.get("totalWeight", 0.0))
-                    total_volume = safe_float(cargo.get("totalVolume", 0.0))
+                    total_weight = weight_val * quantity_val
+                    total_volume = volPerPackage * quantity_val
 
                     total_weight_all += total_weight
                     total_volume_all += total_volume
@@ -316,71 +311,75 @@ def fba_quote_app():
                     st.success("✅ Rate calculation successful. Showing breakdown:")
 
                     quotations_backup(quote_id,result)  # 💾 Save backup
+                    df, output = summarization(result)
+                    st.data_editor(df)
+                    for oi in output:
+                        st.data_editor(oi)
 
                     # ✅ Show rate breakdowns if available
-                    for idx, destination in enumerate(result):
-                        dest_info = result[destination]
-                        st.markdown(f"📍 Destination {idx + 1}: `{destination}`")
+                    # for idx, destination in enumerate(result):
+                    #     dest_info = result[destination]
+                    #     st.markdown(f"📍 Destination {idx + 1}: `{destination}`")
 
-                        with st.container(border=True):
-                            route_count = 1
+                    #     with st.container(border=True):
+                    #         route_count = 1
 
-                            for console_key in ["Own Console", "Coload"]:
-                                if console_key in dest_info:
-                                    data = dest_info[console_key]
+                    #         for console_key in ["Own Console", "Coload"]:
+                    #             if console_key in dest_info:
+                    #                 data = dest_info[console_key]
 
-                                    origin = data.get("Origin", "")
-                                    pol = data.get("POL", "")
-                                    pod = data.get("POD", "")
-                                    fba = data.get("FBA Code", "")
-                                    shipmentscope = data.get("Shipment Scope","")
-                                    cbm_cost = data.get("Total per cbm", "N/A")
-                                    if shipmentscope == "Port-to-Door":
-                                        route_parts = [p for p in [origin, pod, fba] if p]
-                                    else:
-                                        route_parts = [p for p in [origin, pol, pod, fba] if p]
-                                    route_str = " → ".join(route_parts)
+                    #                 origin = data.get("Origin", "")
+                    #                 pol = data.get("POL", "")
+                    #                 pod = data.get("POD", "")
+                    #                 fba = data.get("FBA Code", "")
+                    #                 shipmentscope = data.get("Shipment Scope","")
+                    #                 cbm_cost = data.get("Total per cbm", "N/A")
+                    #                 if shipmentscope == "Port-to-Door":
+                    #                     route_parts = [p for p in [origin, pod, fba] if p]
+                    #                 else:
+                    #                     route_parts = [p for p in [origin, pol, pod, fba] if p]
+                    #                 route_str = " → ".join(route_parts)
 
-                                    with st.expander(f'Route {route_count}', expanded=True):
-                                        st.markdown(f"**🚚 Console Type:** {console_key}")
-                                        st.markdown(f"**📍 Route:** {route_str}")
-                                        st.markdown(f"**💰 Total Cost / CBM:** ${cbm_cost}")
+                    #                 with st.expander(f'Route {route_count}', expanded=True):
+                    #                     st.markdown(f"**🚚 Console Type:** {console_key}")
+                    #                     st.markdown(f"**📍 Route:** {route_str}")
+                    #                     st.markdown(f"**💰 Total Cost / CBM:** ${cbm_cost}")
 
-                                        col1, col2 = st.columns([1, 1])
-                                        with col1:
-                                            st.button("💾 Save Quote", key=f"save_{idx}_{console_key}")
-                                        with col2:
-                                            st.button("🔍 Review Quote", key=f"review_{idx}_{console_key}")
+                    #                     col1, col2 = st.columns([1, 1])
+                    #                     with col1:
+                    #                         st.button("💾 Save Quote", key=f"save_{idx}_{console_key}")
+                    #                     with col2:
+                    #                         st.button("🔍 Review Quote", key=f"review_{idx}_{console_key}")
 
-                                        # Totals
-                                        total_keys = ["Total Weight", "Total CBM", "Total Pallets", "category"]
-                                        total_rows = [(key, data[key]) for key in total_keys if key in data]
-                                        if total_rows:
-                                            st.dataframe(pd.DataFrame(total_rows, columns=["Feild", "Value"]), use_container_width=True, hide_index=True)
-                                        else:
-                                            st.info("ℹ️ No total breakdown available.")
+                    #                     # Totals
+                    #                     total_keys = ["Total Weight", "Total CBM", "Total Pallets", "category"]
+                    #                     total_rows = [(key, data[key]) for key in total_keys if key in data]
+                    #                     if total_rows:
+                    #                         st.dataframe(pd.DataFrame(total_rows, columns=["Feild", "Value"]), use_container_width=True, hide_index=True)
+                    #                     else:
+                    #                         st.info("ℹ️ No total breakdown available.")
 
-                                        # Rate breakdown
-                                        rate_keys = [
-                                            "Pick-Up Charges", "P2P Charge", "Selected lm",
-                                            "OCC", "DCC", "Documentation", "Palletization Cost", "Total Cost", "Total per cbm"
-                                        ]
-                                        rate_rows = []
-                                        for key in rate_keys:
-                                            if key in data:
-                                                value = data[key]
-                                                if key == "Selected lm" and isinstance(value, dict):
-                                                    rate_rows.append(("Last mile Rate", value.get("Rate", "N/A")))
-                                                    rate_rows.append(("Last mile Rate Type", value.get("Rate Type", "N/A")))
-                                                    rate_rows.append(("Last mile Service Provider", value.get("Service Provider", "N/A")))
-                                                else:
-                                                    rate_rows.append((key, value))
-                                        if rate_rows:
-                                            st.dataframe(pd.DataFrame(rate_rows, columns=["Charge Head", "Value"]), use_container_width=True, hide_index=True)
-                                        else:
-                                            st.info("ℹ️ No pricing breakdown available.")
+                    #                     # Rate breakdown
+                    #                     rate_keys = [
+                    #                         "Pick-Up Charges", "P2P Charge", "Selected lm",
+                    #                         "OCC", "DCC", "Documentation", "Palletization Cost", "Total Cost", "Total per cbm"
+                    #                     ]
+                    #                     rate_rows = []
+                    #                     for key in rate_keys:
+                    #                         if key in data:
+                    #                             value = data[key]
+                    #                             if key == "Selected lm" and isinstance(value, dict):
+                    #                                 rate_rows.append(("Last mile Rate", value.get("Rate", "N/A")))
+                    #                                 rate_rows.append(("Last mile Rate Type", value.get("Rate Type", "N/A")))
+                    #                                 rate_rows.append(("Last mile Service Provider", value.get("Service Provider", "N/A")))
+                    #                             else:
+                    #                                 rate_rows.append((key, value))
+                    #                     if rate_rows:
+                    #                         st.dataframe(pd.DataFrame(rate_rows, columns=["Charge Head", "Value"]), use_container_width=True, hide_index=True)
+                    #                     else:
+                    #                         st.info("ℹ️ No pricing breakdown available.")
 
-                                    route_count += 1
+                    #                 route_count += 1
 
 
 

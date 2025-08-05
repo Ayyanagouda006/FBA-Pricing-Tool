@@ -5,6 +5,145 @@ from exfreight import exfreight_api
 from jbhunt import jbhunt_api
 from math import ceil
 
+def summarization(data):  
+    # Convert to DataFrame
+    rows = []
+    for dest, modes in data.items():
+        for mode, details in modes.items():
+            rows.append({
+                "Origin Address": details.get("Origin", ""),
+                "POL": details.get("POL",""),
+                "P2P Type": mode,
+                "Consolidator": details.get("Consolidator", ""),
+                "FBA / Destn Coast": "",
+                "FPOD": details.get("POD", ""),
+                "FBA / Destn": details.get("FBA Code", ""),
+                "FBA / Destn Address": details.get("FBA Address",""),
+                "Category": details.get("category", ""),
+                "CBM": details.get("Total CBM", ""),
+                "#Pallets": details.get("Total Pallets", ""),
+                "LM Delivery Type": details.get("Selected lm", {}).get("Rate Type", ""),
+                "LM Rate": details.get("Selected lm", {}).get("Rate", ""),
+                "LM Broker": details.get("Selected lm", {}).get("Service Provider", ""),
+                "LM Carrier": details.get("Selected lm", {}).get("Carrier Name", ""),
+                "1st Mile": details.get("Pick-Up Charges", 0.0),
+                "OCC": details.get("OCC", 0.0),
+                "DCC": details.get("DCC", 0.0),
+                "P2P": details.get("PER CBM P2P", 0.0),
+                "Documentation": details.get("Documentation", 0.0),
+                "Palletization (Per Pallet)": details.get("Palletization (Per Pallet)", 0.0)
+            })
+            
+    output1 = pd.DataFrame(rows)
+
+
+    # Step 2: Group by selected columns and create individual transposed DataFrames
+    group_keys = [
+        "Origin Address", "POL", "1st Mile", "OCC", "DCC", "P2P", "Documentation", "Palletization (Per Pallet)"
+    ]
+
+    grouped_dfs = [group.reset_index(drop=True) for _, group in output1.groupby(group_keys)]
+
+    output = []
+    for df in grouped_dfs:
+        orows = []
+        first_mile = 0.0
+        occ = 0.0
+        dcc = 0.0
+        cbm = 0.0
+        pallets = 0.0
+        doc = 0.0
+        P2P = 0.0
+        pal_pp = 0.0
+        lm = {}
+        for i, row in df.iterrows():
+            first_mile = float(row['1st Mile'])
+            occ = float(row['OCC'])
+            dcc = float(row['DCC'])
+            cbm += float(row['CBM'])
+            pallets += float(row['#Pallets'])
+            P2P = float(row['P2P'])
+            doc = float(row['Documentation'])
+            pal_pp = float(row['Palletization (Per Pallet)'])
+            fba_code = row["FBA / Destn"]
+            lm[row["FBA / Destn"]]=float(row['LM Rate'])
+
+        orows.append({"Charge Heads":"1St Mile",
+                    "Basis": "As per Vendor",
+                    "Basis QTY":"",
+                    "Charge In $":first_mile,
+                    "Exchange Rate (USD to INR)": 88,
+                    "Per CBM":first_mile,
+                    "Charge in INR":first_mile * 88})
+
+        orows.append({"Charge Heads":"OCC",
+                "Basis": " Flat (Per Quote)",
+                "Basis QTY":"",
+                "Charge In $":occ,
+                "Exchange Rate (USD to INR)": 88,
+                "Per CBM":occ,
+                "Charge in INR":occ * 88})
+
+        orows.append({"Charge Heads":"DCC",
+                "Basis": " Flat (Per Quote)",
+                "Basis QTY":"",
+                "Charge In $":dcc,
+                "Exchange Rate (USD to INR)": 88,
+                "Per CBM":dcc,
+                "Charge in INR":dcc * 88})
+
+        P2P_doc = P2P+doc
+        p_p2p = P2P_doc/cbm
+        orows.append({"Charge Heads":"P2P",
+                "Basis": "Per CBM",
+                "Basis QTY":cbm,
+                "Charge In $":P2P_doc,
+                "Exchange Rate (USD to INR)": 88,
+                "Per CBM":p_p2p,
+                "Charge in INR":p_p2p * 88})
+
+        tot_pal = pal_pp * pallets
+        orows.append({"Charge Heads":"Palletization",
+                "Basis": "Per Pallet",
+                "Basis QTY":pallets,
+                "Charge In $":pal_pp,
+                "Exchange Rate (USD to INR)": 88,
+                "Per CBM":tot_pal,
+                "Charge in INR":tot_pal * 88})
+
+        for key, value in lm.items():
+            pvalue = float(value)/cbm
+            orows.append({"Charge Heads":f"Last Mile({key})",
+                    "Basis": "",
+                    "Basis QTY":"",
+                    "Charge In $":value,
+                    "Exchange Rate (USD to INR)": 88,
+                    "Per CBM": pvalue,
+                    "Charge in INR":pvalue * 88})
+
+        odf = pd.DataFrame(orows)
+
+        # Add Total row
+        total_row = {
+            "Charge Heads": "Total",
+            "Basis": "",
+            "Basis QTY": "",
+            "Charge In $": odf["Charge In $"].sum(),
+            "Exchange Rate (USD to INR)": "",  # Optional: leave blank or keep 88
+            "Per CBM": odf["Per CBM"].sum(),
+            "Charge in INR": odf["Charge in INR"].sum()
+        }
+        odf = pd.concat([odf, pd.DataFrame([total_row])], ignore_index=True)
+        odf = odf.round(2)
+        output.append(odf)
+
+
+    output1 = output1[["Origin Address", "POL", "P2P Type", "Consolidator", "FBA / Destn Coast", "FPOD",
+            "FBA / Destn", "FBA / Destn Address", "Category", "CBM", "#Pallets", "LM Delivery Type",
+            "LM Broker", "LM Carrier"]]
+
+    return output1, output
+
 def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, weight):
     # Read offline last mile rates
     lm = pd.read_excel(r"Data/Last Mile Rates (no api).xlsx", "Last Mile Rates (no api)")
@@ -169,6 +308,7 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
 def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: float) -> str:
     """
     Classifies the FBA code into HOT, WARM, or COLD based on activity and quote CBM.
+    If a Pre-Determined Bucket is present, it overrides the classification logic.
 
     Args:
         fba_locations (pd.DataFrame): DataFrame with FBA location data.
@@ -184,6 +324,13 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
     if sub_df.empty:
         return "COLD"  # Default if FBA code not found
 
+    # Check for Pre-Determined Bucket
+    pre_determined = sub_df["Pre-Determined Bucket"].values[0]
+    Consolidator = sub_df["Consolidator"].values[0]
+    if pd.notna(pre_determined) and str(pre_determined).strip() != "":
+        return str(pre_determined).strip().upper(), Consolidator
+
+    # Proceed with classification logic
     last_10_weeks = sub_df["Last 10 weeks"].values[0]
     last_1_week = sub_df["Last 1 Week"].values[0]
 
@@ -192,11 +339,12 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
         or (last_10_weeks < 500 and quote_cbm > 35)
         or last_1_week > 65
     ):
-        return "HOT"
+        return "HOT", Consolidator
     elif quote_cbm > 15 or last_1_week > 25:
-        return "WARM"
+        return "WARM", Consolidator
     else:
-        return "COLD"
+        return "COLD", Consolidator
+
     
 def console_lmservice(category, fpod, des_val, pallets, quote_cbm):
     fpod = fpod.upper()
@@ -209,8 +357,10 @@ def console_lmservice(category, fpod, des_val, pallets, quote_cbm):
 
     # Condition 2
     if fpod in ["USNYC", "USCHS"] and des_val == "multiple":
-        if pallets > 12:
+        if pallets > 12 and pallets < 27:
             return "condition2", "Own Console", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Own Console", ["FTL"]
         else:
             return "condition2", "Own Console", ["FTL", "FTL53", "LTL"]
 
@@ -220,21 +370,30 @@ def console_lmservice(category, fpod, des_val, pallets, quote_cbm):
 
     # Condition 4
     if fpod not in ["USNYC", "USCHS"] and des_val == "multiple" and quote_cbm > 25:
-        if pallets > 12:
-            return "condition4", "Own Console", ["FTL53"]
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Own Console", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Own Console", ["FTL"]
         else:
-            return "condition4", "Own Console", ["FTL", "FTL53", "LTL"]
+            return "condition2", "Own Console", ["FTL", "FTL53", "LTL"]
 
     # Condition 5
-    if fpod not in ["USNYC", "USCHS"] and category == "WARM":
-        if pallets > 12:
-            return "condition5", "Coload", ["FTL53"]
+    if fpod not in ["USNYC", "USCHS"] and category == "WARM" and des_val in ['single' ,'multiple']:
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Coload", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Coload", ["FTL"]
         else:
-            return "condition5", "Own Console", ["FTL", "FTL53"]
+            return "condition2", "Coload", ["FTL", "FTL53", "LTL"]
 
     # Condition 6
-    if fpod not in ["USNYC", "USCHS"] and category == "COLD":
-        return "condition6", "Coload", ["FTL", "LTL"]
+    if fpod not in ["USNYC", "USCHS"] and category == "COLD" and des_val in ['single' ,'multiple']:
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Coload", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Coload", ["FTL"]
+        else:
+            return "condition2", "Coload", ["FTL", "FTL53", "LTL"]
 
     # Default fallback
     return "", "not selected", []
@@ -290,6 +449,7 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
         total_pallet_count = pallets + loose_as_pallets
 
         fba_code = destination_name.split(" ")[0]
+        fba_address = destination_name.split(" ")[1]
         sub_fba_locations = fba_locations[fba_locations['FBA Code'] == fba_code]
 
         if sub_fba_locations.empty:
@@ -297,9 +457,10 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
             continue
 
         try:
-            category = classify_fba_code(fba_locations, fba_code, total_cbm)
+            category, Consolidator = classify_fba_code(fba_locations, fba_code, total_cbm)
         except Exception as e:
             category = "Unknown"
+            Consolidator = ""
             errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
 
         for i, row in sub_fba_locations.iterrows():
@@ -366,9 +527,11 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                             (accessorials['Location Unloc'] == fpod_unloc) & 
                             (accessorials['Charge Head'] == 'Documentation')
                         ]['Amount'].values[0]
+                        doc_pcbm = float(pod_doc)/float(total_cbm) 
                     except IndexError:
                         errors.append(f"⚠️ Documentation charge missing for {fpod_unloc}")
                         pod_doc = 0
+                        doc_pcbm = 0
 
                     try:
                         occ = accessorials[
@@ -417,7 +580,9 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                         "POD": fpod_city,
                         "POD Zip": fpod_zip,
                         "FBA Code": fba_code,
+                        "FBA Address": fba_address,
                         "FBA Zip Code": fba_zip,
+                        "Consolidator": Consolidator,
                         "Qty": qty,
                         "Total Weight": weight,
                         "Total CBM": total_cbm,
@@ -433,11 +598,13 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                         'Selected lm': selected_lowest,
                         "Pick-Up Charges": pickup_charges,
                         "PER CBM P2P": percbm_p2p,
+                        "PER CBM P2P & Doc": percbm_p2p + doc_pcbm,
                         "P2P Charge": total_p2p,
                         "Destination Doc": float(pod_doc),
                         "OCC": float(occ),
                         "DCC": float(dcc),
                         "Documentation": float(pod_doc),
+                        "Palletization (Per Pallet)": float(pal_cost),
                         "Palletization Cost": + float(palletization_cost),
                         "Last Mile Rate": selected_lowest["Rate"],
                         "Total Cost": gtotal,
