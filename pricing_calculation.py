@@ -5,7 +5,9 @@ from exfreight import exfreight_api
 from jbhunt import jbhunt_api
 from math import ceil
 
-def summarization(data, exchange_rate=88):  
+exchange_rate=88
+
+def summarization(data):  
     # Step 1: Flatten nested dict into rows
     rows = []
     for dest, modes in data.items():
@@ -44,6 +46,7 @@ def summarization(data, exchange_rate=88):
     tot_cbm = output1["CBM"].sum()
     pallets = output1["#Pallets"].sum()
     pal_pp = output1["Palletization (Per Pallet)"].astype(float).max()
+    lm_delivery_type = list(output1["LM Delivery Type"].unique())
 
     # Step 3: P2P per FPOD calculation (grouped CBM and Documentation)
     P2P_dict = {}
@@ -72,6 +75,7 @@ def summarization(data, exchange_rate=88):
             lm[fba_code] = {"Rate": 0.0, "CBM": 0.0}
         lm[fba_code]["Rate"] += float(row["LM Rate"])
         lm[fba_code]["CBM"] += float(row["CBM"])
+        lm[fba_code]["LM Delivery Type"] = row["LM Delivery Type"]
 
     # Step 5: Compose Charge Heads table
     def charge_row(name, basis, qty, usd):
@@ -91,28 +95,80 @@ def summarization(data, exchange_rate=88):
             "Charge in INR": per_cbm * exchange_rate
         }
 
-    orows.append(charge_row("1St Mile", "As per Vendor", "", first_mile))
-    orows.append(charge_row("OCC", "Flat (Per Quote)", "", occ))
-    orows.append(charge_row("DCC", "Flat (Per Quote)", "", dcc))
+    orows.append({
+            "Charge Heads": "1St Mile",
+            "Basis": "As per Vendor",
+            "Basis QTY": "",
+            "Charge In $": first_mile,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": first_mile,
+            "Charge in INR": first_mile * exchange_rate
+        })
+    orows.append({
+        "Charge Heads": "OCC",
+        "Basis": "Flat (Per Quote)",
+        "Basis QTY": "",
+        "Charge In $": occ,
+        "Exchange Rate (USD to INR)": exchange_rate,
+        "Per CBM": occ,
+        "Charge in INR": occ * exchange_rate
+    })
+    orows.append({
+        "Charge Heads": "DCC",
+        "Basis": "Flat (Per Quote)",
+        "Basis QTY": "",
+        "Charge In $": dcc,
+        "Exchange Rate (USD to INR)": exchange_rate,
+        "Per CBM": dcc,
+        "Charge in INR": dcc * exchange_rate
+    })
 
     for fpod, value in P2P_dict.items():
-        orows.append(charge_row(f"P2P({fpod})", "Per CBM", value['CBM'], value['Total P2P']))
+        cal_p2p = value['Total P2P']*value['CBM']
+        orows.append({
+            "Charge Heads": f"P2P({fpod})",
+            "Basis": "Per CBM",
+            "Basis QTY": value['CBM'],
+            "Charge In $": cal_p2p,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": value['Total P2P'],
+            "Charge in INR": cal_p2p * exchange_rate
+        })
 
-
-    orows.append(charge_row("Palletization", "Per Pallet", pallets, pal_pp))
+    if "Drayage" not in lm_delivery_type:
+        cal_pal_pp = pallets*pal_pp
+        orows.append({
+            "Charge Heads": "Palletization",
+            "Basis": "Per Pallet",
+            "Basis QTY": pallets,
+            "Charge In $": cal_pal_pp,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": pal_pp,
+            "Charge in INR": cal_pal_pp * exchange_rate
+        })
 
     for fba_code, value in lm.items():
+
+        if value["LM Delivery Type"] == "FTL":
+            loadability = 60
+        if value["LM Delivery Type"] == "FTL53":
+            loadability = 60
+        if value["LM Delivery Type"] == "LTL":
+            loadability = 60
+        if value["LM Delivery Type"] == "Drayage":
+            loadability = 60
         lm_rate = value["Rate"]
+        lm_rate_pcbm = float(lm_rate)/float(loadability)
         lm_cbm = value["CBM"]
-        per_cbm = lm_rate / lm_cbm if lm_cbm else 0.0
+        lm_per_cbm = lm_rate_pcbm * lm_cbm
         orows.append({
             "Charge Heads": f"Last Mile({fba_code})",
             "Basis": "Per CBM",
             "Basis QTY": lm_cbm,
-            "Charge In $": lm_rate,
+            "Charge In $": lm_per_cbm,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": per_cbm,
-            "Charge in INR": per_cbm * exchange_rate
+            "Per CBM": lm_rate_pcbm,
+            "Charge in INR": lm_per_cbm * exchange_rate
         })
 
     # Final total
@@ -502,7 +558,18 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                 try:
                     pol = prow['POL Name']
                     pol_unloc = prow['POR/POL']
-                    percbm_p2p = prow['Per CBM(USD)']
+                    oc_p2p_inr = prow['Origin charges per Container(INR)']
+                    of_p2p = prow['Ocean Freight (USD)']
+                    loadability = prow['Loadability']
+                    if "Drayage" in service_modes:
+                        oc_p2p_usd = float(oc_p2p_inr)/float(exchange_rate)
+                        t_p2p = float(oc_p2p_usd)+float(of_p2p)
+                        percbm_p2p = t_p2p/loadability
+                    else:
+                        percbm_p2p = prow['Per CBM(USD)']
+
+
+                    
                     total_p2p = percbm_p2p * total_cbm
                     console = prow['P2P Type']
 
