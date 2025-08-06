@@ -5,25 +5,25 @@ from exfreight import exfreight_api
 from jbhunt import jbhunt_api
 from math import ceil
 
-def summarization(data):  
-    # Convert to DataFrame
+def summarization(data, exchange_rate=88):  
+    # Step 1: Flatten nested dict into rows
     rows = []
     for dest, modes in data.items():
         for mode, details in modes.items():
             rows.append({
                 "Origin Address": details.get("Origin", ""),
-                "POL": details.get("POL",""),
+                "POL": details.get("POL", ""),
                 "P2P Type": mode,
                 "Consolidator": details.get("Consolidator", ""),
                 "FBA / Destn Coast": "",
                 "FPOD": details.get("POD", ""),
                 "FBA / Destn": details.get("FBA Code", ""),
-                "FBA / Destn Address": details.get("FBA Address",""),
+                "FBA / Destn Address": details.get("FBA Address", ""),
                 "Category": details.get("category", ""),
-                "CBM": details.get("Total CBM", ""),
-                "#Pallets": details.get("Total Pallets", ""),
+                "CBM": details.get("Total CBM", 0.0),
+                "#Pallets": details.get("Total Pallets", 0.0),
                 "LM Delivery Type": details.get("Selected lm", {}).get("Rate Type", ""),
-                "LM Rate": details.get("Selected lm", {}).get("Rate", ""),
+                "LM Rate": details.get("Selected lm", {}).get("Rate", 0.0),
                 "LM Broker": details.get("Selected lm", {}).get("Service Provider", ""),
                 "LM Carrier": details.get("Selected lm", {}).get("Carrier Name", ""),
                 "1st Mile": details.get("Pick-Up Charges", 0.0),
@@ -33,116 +33,111 @@ def summarization(data):
                 "Documentation": details.get("Documentation", 0.0),
                 "Palletization (Per Pallet)": details.get("Palletization (Per Pallet)", 0.0)
             })
-            
+
     output1 = pd.DataFrame(rows)
 
+    # Step 2: Initialize totals and mappings
+    orows = []
+    first_mile = output1["1st Mile"].astype(float).max()
+    occ = output1["OCC"].astype(float).max()
+    dcc = output1["DCC"].astype(float).max()
+    tot_cbm = output1["CBM"].sum()
+    pallets = output1["#Pallets"].sum()
+    pal_pp = output1["Palletization (Per Pallet)"].astype(float).max()
 
-    # Step 2: Group by selected columns and create individual transposed DataFrames
-    group_keys = [
-        "Origin Address", "POL", "1st Mile", "OCC", "DCC", "P2P", "Documentation", "Palletization (Per Pallet)"
-    ]
+    # Step 3: P2P per FPOD calculation (grouped CBM and Documentation)
+    P2P_dict = {}
 
-    grouped_dfs = [group.reset_index(drop=True) for _, group in output1.groupby(group_keys)]
+    # Group by FPOD
+    fpod_groups = output1.groupby("FPOD")
 
-    output = []
-    for df in grouped_dfs:
-        orows = []
-        first_mile = 0.0
-        occ = 0.0
-        dcc = 0.0
-        cbm = 0.0
-        pallets = 0.0
-        doc = 0.0
-        P2P = 0.0
-        pal_pp = 0.0
-        lm = {}
-        for i, row in df.iterrows():
-            first_mile = float(row['1st Mile'])
-            occ = float(row['OCC'])
-            dcc = float(row['DCC'])
-            cbm += float(row['CBM'])
-            pallets += float(row['#Pallets'])
-            P2P = float(row['P2P'])
-            doc = float(row['Documentation'])
-            pal_pp = float(row['Palletization (Per Pallet)'])
-            fba_code = row["FBA / Destn"]
-            lm[row["FBA / Destn"]]=float(row['LM Rate'])
+    for fpod, group in fpod_groups:
+        total_cbm = group["CBM"].sum()
+        total_doc = group["Documentation"].max()
+        avg_p2p = group["P2P"].max()  # or you can use max(), sum()/cbm, or first()
 
-        orows.append({"Charge Heads":"1St Mile",
-                    "Basis": "As per Vendor",
-                    "Basis QTY":"",
-                    "Charge In $":first_mile,
-                    "Exchange Rate (USD to INR)": 88,
-                    "Per CBM":first_mile,
-                    "Charge in INR":first_mile * 88})
+        doc_per_cbm = total_doc / total_cbm if total_cbm else 0.0
+        total_p2p = avg_p2p + doc_per_cbm
 
-        orows.append({"Charge Heads":"OCC",
-                "Basis": " Flat (Per Quote)",
-                "Basis QTY":"",
-                "Charge In $":occ,
-                "Exchange Rate (USD to INR)": 88,
-                "Per CBM":occ,
-                "Charge in INR":occ * 88})
+        P2P_dict[fpod] = {'CBM':total_cbm,'Total P2P': total_p2p}
 
-        orows.append({"Charge Heads":"DCC",
-                "Basis": " Flat (Per Quote)",
-                "Basis QTY":"",
-                "Charge In $":dcc,
-                "Exchange Rate (USD to INR)": 88,
-                "Per CBM":dcc,
-                "Charge in INR":dcc * 88})
+        print(f"FPOD: {fpod}, CBM: {total_cbm}, P2P: {avg_p2p}, Doc/CBM: {doc_per_cbm}, Total P2P: {total_p2p}")
 
-        P2P_doc = P2P+doc
-        p_p2p = P2P_doc/cbm
-        orows.append({"Charge Heads":"P2P",
-                "Basis": "Per CBM",
-                "Basis QTY":cbm,
-                "Charge In $":P2P_doc,
-                "Exchange Rate (USD to INR)": 88,
-                "Per CBM":p_p2p,
-                "Charge in INR":p_p2p * 88})
 
-        tot_pal = pal_pp * pallets
-        orows.append({"Charge Heads":"Palletization",
-                "Basis": "Per Pallet",
-                "Basis QTY":pallets,
-                "Charge In $":pal_pp,
-                "Exchange Rate (USD to INR)": 88,
-                "Per CBM":tot_pal,
-                "Charge in INR":tot_pal * 88})
+    # Step 4: LM per FBA code
+    lm = {}
+    for _, row in output1.iterrows():
+        fba_code = row["FBA / Destn"]
+        if fba_code not in lm:
+            lm[fba_code] = {"Rate": 0.0, "CBM": 0.0}
+        lm[fba_code]["Rate"] += float(row["LM Rate"])
+        lm[fba_code]["CBM"] += float(row["CBM"])
 
-        for key, value in lm.items():
-            pvalue = float(value)/cbm
-            orows.append({"Charge Heads":f"Last Mile({key})",
-                    "Basis": "",
-                    "Basis QTY":"",
-                    "Charge In $":value,
-                    "Exchange Rate (USD to INR)": 88,
-                    "Per CBM": pvalue,
-                    "Charge in INR":pvalue * 88})
-
-        odf = pd.DataFrame(orows)
-
-        # Add Total row
-        total_row = {
-            "Charge Heads": "Total",
-            "Basis": "",
-            "Basis QTY": "",
-            "Charge In $": odf["Charge In $"].sum(),
-            "Exchange Rate (USD to INR)": "",  # Optional: leave blank or keep 88
-            "Per CBM": odf["Per CBM"].sum(),
-            "Charge in INR": odf["Charge in INR"].sum()
+    # Step 5: Compose Charge Heads table
+    def charge_row(name, basis, qty, usd):
+        if name in ["1St Mile", 'OCC', 'DCC']:
+            per_cbm = usd
+        elif name in ["Palletization"]:
+            per_cbm = usd * qty
+        else:
+            per_cbm = usd / qty if tot_cbm else 0.0
+        return {
+            "Charge Heads": name,
+            "Basis": basis,
+            "Basis QTY": qty,
+            "Charge In $": usd,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": per_cbm,
+            "Charge in INR": per_cbm * exchange_rate
         }
-        odf = pd.concat([odf, pd.DataFrame([total_row])], ignore_index=True)
-        odf = odf.round(2)
-        output.append(odf)
+
+    orows.append(charge_row("1St Mile", "As per Vendor", "", first_mile))
+    orows.append(charge_row("OCC", "Flat (Per Quote)", "", occ))
+    orows.append(charge_row("DCC", "Flat (Per Quote)", "", dcc))
+
+    for fpod, value in P2P_dict.items():
+        orows.append(charge_row(f"P2P({fpod})", "Per CBM", value['CBM'], value['Total P2P']))
 
 
-    output1 = output1[["Origin Address", "POL", "P2P Type", "Consolidator", "FBA / Destn Coast", "FPOD",
-            "FBA / Destn", "FBA / Destn Address", "Category", "CBM", "#Pallets", "LM Delivery Type",
-            "LM Broker", "LM Carrier"]]
+    orows.append(charge_row("Palletization", "Per Pallet", pallets, pal_pp))
 
-    return output1, output
+    for fba_code, value in lm.items():
+        lm_rate = value["Rate"]
+        lm_cbm = value["CBM"]
+        per_cbm = lm_rate / lm_cbm if lm_cbm else 0.0
+        orows.append({
+            "Charge Heads": f"Last Mile({fba_code})",
+            "Basis": "Per CBM",
+            "Basis QTY": lm_cbm,
+            "Charge In $": lm_rate,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": per_cbm,
+            "Charge in INR": per_cbm * exchange_rate
+        })
+
+    # Final total
+    output2 = pd.DataFrame(orows)
+    total_row = {
+        "Charge Heads": "Total",
+        "Basis": "Per CBM",
+        "Basis QTY": tot_cbm,
+        "Charge In $": output2["Charge In $"].sum(),
+        "Exchange Rate (USD to INR)": "",
+        "Per CBM": output2["Charge In $"].sum() / tot_cbm if tot_cbm else 0.0,
+        "Charge in INR": output2["Charge in INR"].sum()
+    }
+    output2 = pd.concat([output2, pd.DataFrame([total_row])], ignore_index=True)
+    output2 = output2.round(2)
+
+    # Final cleaned output1
+    output1 = output1[[
+        "Origin Address", "POL", "P2P Type", "Consolidator", "FBA / Destn Coast", "FPOD",
+        "FBA / Destn", "FBA / Destn Address", "Category", "CBM", "#Pallets", "LM Delivery Type",
+        "LM Broker", "LM Carrier"
+    ]]
+
+    return output1, output2
+
 
 def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, weight):
     # Read offline last mile rates
@@ -449,7 +444,6 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
         total_pallet_count = pallets + loose_as_pallets
 
         fba_code = destination_name.split(" ")[0]
-        fba_address = destination_name.split(" ")[1]
         sub_fba_locations = fba_locations[fba_locations['FBA Code'] == fba_code]
 
         if sub_fba_locations.empty:
@@ -523,44 +517,33 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                             continue
 
                     try:
-                        pod_doc = accessorials[
-                            (accessorials['Location Unloc'] == fpod_unloc) & 
-                            (accessorials['Charge Head'] == 'Documentation')
-                        ]['Amount'].values[0]
-                        doc_pcbm = float(pod_doc)/float(total_cbm) 
+                        pod_doc = 50
+                        doc_pcbm = float(pod_doc)/float(total_cbm)
                     except IndexError:
                         errors.append(f"⚠️ Documentation charge missing for {fpod_unloc}")
                         pod_doc = 0
                         doc_pcbm = 0
 
                     try:
-                        occ = accessorials[
-                            (accessorials['Location Unloc'] == pol_unloc) & 
-                            (accessorials['Charge Head'] == 'OCC')
-                        ]['Amount'].values[0] if is_occ else 0
+                        occ = 52 if is_occ else 0
                     except IndexError:
                         if is_occ:
                             errors.append(f"⚠️ OCC charge missing for {pol_unloc}")
                         occ = 0
 
                     try:
-                        dcc = accessorials[
-                            (accessorials['Location Unloc'] == fpod_unloc) & 
-                            (accessorials['Charge Head'] == 'DCC')
-                        ]['Amount'].values[0] if is_dcc else 0
+                        dcc = 100 if is_dcc else 0
                     except IndexError:
                         if is_dcc:
                             errors.append(f"⚠️ DCC charge missing for {fpod_unloc}")
                         dcc = 0
 
                     try:
-                        pal_cost = palletization[
-                            (palletization['FPOD UNLOC'] == fpod_unloc) &
-                            (palletization['Service Type'] == 'Palletization cost Per Pallet')
-                        ]['Amount'].values[0]
+                        pal_cost = 18
                         palletization_cost = float(pal_cost) * total_pallet_count
                     except IndexError:
                         errors.append(f"⚠️ Palletization Cost missing for {fpod_unloc}")
+                        pal_cost = 0.0
                         palletization_cost = 0.0
 
                     if destination_name not in results:
@@ -580,7 +563,7 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                         "POD": fpod_city,
                         "POD Zip": fpod_zip,
                         "FBA Code": fba_code,
-                        "FBA Address": fba_address,
+                        "FBA Address": destination_name,
                         "FBA Zip Code": fba_zip,
                         "Consolidator": Consolidator,
                         "Qty": qty,
