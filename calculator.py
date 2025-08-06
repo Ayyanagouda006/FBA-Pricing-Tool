@@ -307,83 +307,8 @@ def fba_quote_app():
 
                 quotations_backup(quote_id,result)  # 💾 Save backup
                 df, output = summarization(result)
-                styled_html1 = df.style\
-                    .set_table_styles([
-                        {
-                            'selector': 'thead th',
-                            'props': [
-                                ('background-color', '#4CAF50'),  # green header
-                                ('color', 'white'),
-                                ('font-weight', 'bold'),
-                                ('font-family', 'Times New Roman'),
-                                ('text-align', 'left'),
-                                ('padding', '6px'),
-                                ('border', '1px solid #4CAF50')
-                            ]
-                        },
-                        {
-                            'selector': 'tbody td',
-                            'props': [
-                                ('background-color', '#e8f5e9'),  # light green rows
-                                ('color', 'black'),
-                                ('font-family', 'Times New Roman'),
-                                ('text-align', 'left'),
-                                ('padding', '6px'),
-                                ('border', '1px solid #A5D6A7')
-                            ]
-                        },
-                        {
-                            'selector': 'table',
-                            'props': [
-                                ('border-collapse', 'collapse'),
-                                ('width', '100%'),
-                                ('margin', '10px 0')
-                            ]
-                        }
-                    ])\
-                    .hide(axis="index")\
-                    .to_html()
-
-                st.markdown(styled_html1, unsafe_allow_html=True)
-                
-                styled_html2 = output.style\
-                    .set_table_styles([
-                        {
-                            'selector': 'thead th',
-                            'props': [
-                                ('background-color', '#4CAF50'),  # green header
-                                ('color', 'white'),
-                                ('font-weight', 'bold'),
-                                ('font-family', 'Times New Roman'),
-                                ('text-align', 'left'),
-                                ('padding', '6px'),
-                                ('border', '1px solid #4CAF50')
-                            ]
-                        },
-                        {
-                            'selector': 'tbody td',
-                            'props': [
-                                ('background-color', '#e8f5e9'),  # light green rows
-                                ('color', 'black'),
-                                ('font-family', 'Times New Roman'),
-                                ('text-align', 'left'),
-                                ('padding', '6px'),
-                                ('border', '1px solid #A5D6A7')
-                            ]
-                        },
-                        {
-                            'selector': 'table',
-                            'props': [
-                                ('border-collapse', 'collapse'),
-                                ('width', '100%'),
-                                ('margin', '10px 0')
-                            ]
-                        }
-                    ])\
-                    .hide(axis="index")\
-                    .to_html()
-                
-                st.markdown(styled_html2, unsafe_allow_html=True)
+                st.data_editor(df)
+                st.data_editor(output)
 
 
 
