@@ -772,3 +772,47 @@ Traceback (most recent call last):
   File "pyarrow/array.pxi", line 87, in pyarrow.lib._ndarray_to_array
   File "pyarrow/error.pxi", line 92, in pyarrow.lib.check_status
 pyarrow.lib.ArrowInvalid: ("Could not convert 'LTL' with type str: tried to convert to double", 'Conversion failed for column Value with type object')
+
+Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
+
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8506
+  Network URL: http://172.31.40.84:8506
+  External URL: http://3.108.70.93:8506
+
+2025-08-06 11:25:39.220 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 17, in <module>
+    fba_quote_app()
+  File "/home/ubuntu/FBA-Pricing-Tool/calculator.py", line 310, in fba_quote_app
+    styled_html1 = df.style\
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/core/frame.py", line 1442, in style
+    from pandas.io.formats.style import Styler
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/io/formats/style.py", line 44, in <module>
+    jinja2 = import_optional_dependency("jinja2", extra="DataFrame.style requires jinja2.")
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/compat/_optional.py", line 164, in import_optional_dependency
+    raise ImportError(msg)
+ImportError: Pandas requires version '3.1.2' or newer of 'jinja2' (version '3.0.3' currently installed).
+2025-08-06 11:28:36.843 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 17, in <module>
+    fba_quote_app()
+  File "/home/ubuntu/FBA-Pricing-Tool/calculator.py", line 310, in fba_quote_app
+    styled_html1 = df.style\
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/core/frame.py", line 1442, in style
+    from pandas.io.formats.style import Styler
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/io/formats/style.py", line 44, in <module>
+    jinja2 = import_optional_dependency("jinja2", extra="DataFrame.style requires jinja2.")
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/compat/_optional.py", line 164, in import_optional_dependency
+    raise ImportError(msg)
+ImportError: Pandas requires version '3.1.2' or newer of 'jinja2' (version '3.0.3' currently installed).
