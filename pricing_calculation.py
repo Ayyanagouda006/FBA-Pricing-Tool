@@ -17,7 +17,7 @@ def summarization(data):
                 "POL": details.get("POL", ""),
                 "P2P Type": mode,
                 "Consolidator": details.get("Consolidator", ""),
-                "FBA / Destn Coast": "",
+                "FBA / Destn Coast": details.get("coast",""),
                 "FPOD": details.get("POD", ""),
                 "FBA / Destn": details.get("FBA Code", ""),
                 "FBA / Destn Address": details.get("FBA Address", ""),
@@ -64,7 +64,7 @@ def summarization(data):
 
         P2P_dict[fpod] = {'CBM':total_cbm,'Total P2P': total_p2p}
 
-        print(f"FPOD: {fpod}, CBM: {total_cbm}, P2P: {avg_p2p}, Doc/CBM: {doc_per_cbm}, Total P2P: {total_p2p}")
+        # print(f"FPOD: {fpod}, CBM: {total_cbm}, P2P: {avg_p2p}, Doc/CBM: {doc_per_cbm}, Total P2P: {total_p2p}")
 
 
     # Step 4: LM per FBA code
@@ -359,15 +359,16 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
     """
     # Filter the DataFrame to the relevant FBA code
     sub_df = fba_locations[fba_locations["FBA Code"] == fba_code]
-
+    Consolidator = sub_df["Consolidator"].values[0]
+    coast = sub_df["FBA / Destn Coast"].values[0]
     if sub_df.empty:
-        return "COLD"  # Default if FBA code not found
+        return "COLD", Consolidator, coast # Default if FBA code not found
 
     # Check for Pre-Determined Bucket
     pre_determined = sub_df["Pre-Determined Bucket"].values[0]
-    Consolidator = sub_df["Consolidator"].values[0]
+    
     if pd.notna(pre_determined) and str(pre_determined).strip() != "":
-        return str(pre_determined).strip().upper(), Consolidator
+        return str(pre_determined).strip().upper(), Consolidator, coast
 
     # Proceed with classification logic
     last_10_weeks = sub_df["Last 10 weeks"].values[0]
@@ -378,11 +379,11 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
         or (last_10_weeks < 500 and quote_cbm > 35)
         or last_1_week > 65
     ):
-        return "HOT", Consolidator
+        return "HOT", Consolidator, coast
     elif quote_cbm > 15 or last_1_week > 25:
-        return "WARM", Consolidator
+        return "WARM", Consolidator, coast
     else:
-        return "COLD", Consolidator
+        return "COLD", Consolidator, coast
 
     
 def console_lmservice(category, fpod, des_val, pallets, quote_cbm):
@@ -495,10 +496,11 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
             continue
 
         try:
-            category, Consolidator = classify_fba_code(fba_locations, fba_code, total_cbm)
+            category, Consolidator, coast = classify_fba_code(fba_locations, fba_code, total_cbm)
         except Exception as e:
             category = "Unknown"
             Consolidator = ""
+            coast = ""
             errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
 
         for i, row in sub_fba_locations.iterrows():
@@ -549,15 +551,13 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                     oc_p2p_inr = prow['Origin charges per Container(INR)']
                     of_p2p = prow['Ocean Freight (USD)']
                     loadability = prow['Loadability']
-                    if "Drayage" in service_modes:
+                    if "Drayage" in service_modes and console_type == 'Own Console':
                         oc_p2p_usd = float(oc_p2p_inr)/float(exchange_rate)
                         t_p2p = float(oc_p2p_usd)+float(of_p2p)
                         percbm_p2p = t_p2p/loadability
                     else:
                         percbm_p2p = prow['Per CBM(USD)']
-
-
-                    
+                   
                     total_p2p = percbm_p2p * total_cbm
                     console = prow['P2P Type']
 
@@ -572,7 +572,8 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                             continue
 
                     try:
-                        pod_doc = 50
+                        pod_doc = accessorials[(accessorials["Location Unloc"] == fpod_unloc) &
+                                               (accessorials["Charge Head"] == "Documentation")]["Amount"].values[0]
                         doc_pcbm = float(pod_doc)/float(total_cbm)
                     except IndexError:
                         errors.append(f"⚠️ Documentation charge missing for {fpod_unloc}")
@@ -580,21 +581,24 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                         doc_pcbm = 0
 
                     try:
-                        occ = 52 if is_occ else 0
+                        occ = accessorials[(accessorials["Location Unloc"] == pol_unloc) &
+                                               (accessorials["Charge Head"] == "OCC")]["Amount"].values[0] if is_occ else 0
                     except IndexError:
                         if is_occ:
                             errors.append(f"⚠️ OCC charge missing for {pol_unloc}")
                         occ = 0
 
                     try:
-                        dcc = 100 if is_dcc else 0
+                        dcc = accessorials[(accessorials["Location Unloc"] == fpod_unloc) &
+                                               (accessorials["Charge Head"] == "DCC")]["Amount"].values[0] if is_dcc else 0
                     except IndexError:
                         if is_dcc:
                             errors.append(f"⚠️ DCC charge missing for {fpod_unloc}")
                         dcc = 0
 
                     try:
-                        pal_cost = 18
+                        pal_cost = palletization[(palletization["FPOD UNLOC"] == fpod_unloc) &
+                                               (palletization["Service Type"] == "Palletization cost Per Pallet")]["Amount"].values[0]
                         palletization_cost = float(pal_cost) * total_pallet_count
                     except IndexError:
                         errors.append(f"⚠️ Palletization Cost missing for {fpod_unloc}")
@@ -621,6 +625,7 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_m
                         "FBA Address": destination_name,
                         "FBA Zip Code": fba_zip,
                         "Consolidator": Consolidator,
+                        "coast": coast,
                         "Qty": qty,
                         "Total Weight": weight,
                         "Total CBM": total_cbm,

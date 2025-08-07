@@ -302,13 +302,49 @@ def fba_quote_app():
             log_rate_request(quote_id, console_type, service_modes, result, errors)
 
             if result and not errors:
-                # Show success message again if you like
-                st.success("✅ Rate calculation successful. Showing breakdown:")
+                try:
+                    st.success("✅ Rate calculation successful. Showing breakdown:")
 
-                quotations_backup(quote_id,result)  # 💾 Save backup
-                df, output = summarization(result)
-                st.data_editor(df)
-                st.data_editor(output)
+                    quotations_backup(quote_id, result)  # 💾 Save backup
+
+                    own_console_dict = {}
+                    coload_dict = {}
+
+                    for location, consoles in result.items():
+                        if "Own Console" in consoles:
+                            own_console_dict[location] = {"Own Console": consoles["Own Console"]}
+                        if "Coload" in consoles:
+                            coload_dict[location] = {"Coload": consoles["Coload"]}
+
+                    # Display Own Console Results
+                    if own_console_dict:
+                        st.markdown("### 🚛 Own Console Breakdown")
+                        ocoutput1, ocoutput2 = summarization(own_console_dict)
+                        
+                        with st.container(border=True):
+                            st.markdown("#### 📦 Summary Table")
+                            st.data_editor(ocoutput1, use_container_width=True, disabled=True)
+                            
+                            st.markdown("#### 📊 Detailed Breakdown")
+                            st.data_editor(ocoutput2, use_container_width=True, disabled=True)
+
+                    # Display Coload Results
+                    if coload_dict:
+                        st.markdown("### 🚚 Coload Breakdown")
+                        cooutput1, cooutput2 = summarization(coload_dict)
+                        
+                        with st.container(border=True):
+                            st.markdown("#### 📦 Summary Table")
+                            st.data_editor(cooutput1, use_container_width=True, disabled=True)
+                            
+                            st.markdown("#### 📊 Detailed Breakdown")
+                            st.data_editor(cooutput2, use_container_width=True, disabled=True)
+
+                except Exception as e:
+                    st.error(f"❌ An error occurred while displaying the breakdown.\n\nDetails: `{e}`")
+            else:
+                st.warning("⚠️ No valid rate results to display.")
+
 
 
 
