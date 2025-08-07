@@ -78,23 +78,6 @@ def summarization(data):
         lm[fba_code]["LM Delivery Type"] = row["LM Delivery Type"]
 
     # Step 5: Compose Charge Heads table
-    def charge_row(name, basis, qty, usd):
-        if name in ["1St Mile", 'OCC', 'DCC']:
-            per_cbm = usd
-        elif name in ["Palletization"]:
-            per_cbm = usd * qty
-        else:
-            per_cbm = usd / qty if tot_cbm else 0.0
-        return {
-            "Charge Heads": name,
-            "Basis": basis,
-            "Basis QTY": qty,
-            "Charge In $": usd,
-            "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": per_cbm,
-            "Charge in INR": per_cbm * exchange_rate
-        }
-
     orows.append({
             "Charge Heads": "1St Mile",
             "Basis": "As per Vendor",
@@ -148,17 +131,22 @@ def summarization(data):
         })
 
     for fba_code, value in lm.items():
-
         if value["LM Delivery Type"] == "FTL":
             loadability = 60
-        if value["LM Delivery Type"] == "FTL53":
+        elif value["LM Delivery Type"] == "FTL53":
             loadability = 60
-        if value["LM Delivery Type"] == "LTL":
+        elif value["LM Delivery Type"] == "LTL":
             loadability = 60
-        if value["LM Delivery Type"] == "Drayage":
+        elif value["LM Delivery Type"] == "Drayage":
             loadability = 60
+        else:
+            loadability = 0
         lm_rate = value["Rate"]
-        lm_rate_pcbm = float(lm_rate)/float(loadability)
+        if float(loadability) != 0:
+            lm_rate_pcbm = float(lm_rate) / float(loadability)
+        else:
+            lm_rate_pcbm = 0.0  # or any fallback value or raise a meaningful error
+
         lm_cbm = value["CBM"]
         lm_per_cbm = lm_rate_pcbm * lm_cbm
         orows.append({
@@ -189,7 +177,7 @@ def summarization(data):
     output1 = output1[[
         "Origin Address", "POL", "P2P Type", "Consolidator", "FBA / Destn Coast", "FPOD",
         "FBA / Destn", "FBA / Destn Address", "Category", "CBM", "#Pallets", "LM Delivery Type",
-        "LM Broker", "LM Carrier"
+        "LM Broker", "LM Carrier", "LM Rate"
     ]]
 
     return output1, output2
