@@ -135,7 +135,7 @@ def api(origin, destination, weight, qty):
         return {"error": "Exception occurred", "message": str(e)}
     
 def exfreight_api(origin, destination, weight, qty):
-    df = pd.read_excel(r"D:\Ayyanagouda\Last Mile Rates\Data\API Data\exfreight_output.xlsx")
+    df = pd.read_excel(r"Data/API Data/exfreight_output.xlsx")
     origin = str(origin).zfill(5)
     destination = str(destination).zfill(5)
     df['FPOD ZIP'] = df['FPOD ZIP'].astype(str).str.zfill(5)
@@ -146,8 +146,8 @@ def exfreight_api(origin, destination, weight, qty):
         (df['FBA ZIP'] == destination) &
         (df['Pallets'] == qty)
     ]
-    print(origin, destination, weight, qty)
-    print('Matching Rows lenght:',len(match))
+    # print(origin, destination, weight, qty)
+    # print('Matching Rows lenght:',len(match))
 
     if not match.empty:
         valid_rows = match[

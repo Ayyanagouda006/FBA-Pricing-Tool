@@ -117,7 +117,7 @@ def api(origin_zip, destination_zip, weight):
     }
 
 def jbhunt_api(origin_zip, destination_zip, weight):
-    df = pd.read_excel(r"D:\Ayyanagouda\Last Mile Rates\Data\API Data\exfreight_output.xlsx")
+    df = pd.read_excel(r"Data/API Data/exfreight_output.xlsx")
 
     origin_zip = str(origin_zip).zfill(5)
     destination_zip = str(destination_zip).zfill(5)

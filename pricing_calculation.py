@@ -132,23 +132,26 @@ def summarization(data):
 
     for fba_code, value in lm.items():
         lm_rate = value["Rate"]
+        lm_cbm = value["CBM"]
         if value["LM Delivery Type"] == "Drayage":
             loadability = 60
             
             lm_rate_pcbm = float(lm_rate) / float(loadability)
+            charge_lm = float(lm_rate_pcbm) * float(lm_cbm)
         else:
             lm_rate_pcbm = lm_rate
+            charge_lm = lm_rate
 
-        lm_cbm = value["CBM"]
+        
 
         orows.append({
             "Charge Heads": f"Last Mile({fba_code})",
             "Basis": "Per CBM",
             "Basis QTY": lm_cbm,
-            "Charge In $": lm_rate_pcbm,
+            "Charge In $": charge_lm,
             "Exchange Rate (USD to INR)": exchange_rate,
             "Per CBM": lm_rate_pcbm,
-            "Charge in INR": lm_rate_pcbm * exchange_rate
+            "Charge in INR": charge_lm * exchange_rate
         })
 
     # Final total

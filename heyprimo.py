@@ -148,7 +148,7 @@ def api(row: dict):
         return None
 
 def heyprimo_api(row: dict):
-    df = pd.read_excel(r"D:\Ayyanagouda\Last Mile Rates\Data\API Data\Heyprimo_output.xlsx")
+    df = pd.read_excel(r"Data/API Data/Heyprimo_output.xlsx")
     fpod_city = row["Origin City"]
     fpod_st_code = row["Origin State Code"]
     fpod_zip = row["Origin ZIP"]
