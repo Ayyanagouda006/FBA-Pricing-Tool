@@ -58,7 +58,7 @@ def fetch_shipping_rates(token: str, query_params: dict) -> dict:
         return None
 
 # ----------------- Process Single Row -----------------
-def heyprimo_api(row: dict):
+def api(row: dict):
     try:
         ori_city = row['Origin City'].strip().upper()
         ori_state = row['Origin State Code'].strip().upper()
@@ -146,3 +146,45 @@ def heyprimo_api(row: dict):
                             row.get('Destn City',''), row.get('Destn State Code', ''), row.get("FBA or Destination ZIP", ""), 
                             row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}")
         return None
+
+def heyprimo_api(row: dict):
+    df = pd.read_excel(r"D:\Ayyanagouda\Last Mile Rates\Data\API Data\Heyprimo_output.xlsx")
+    fpod_city = row["Origin City"]
+    fpod_st_code = row["Origin State Code"]
+    fpod_zip = row["Origin ZIP"]
+    fba_city = row["Destn City"]
+    fba_st_code = row["Destn State Code"]
+    fba_zip = row["FBA or Destination ZIP"]
+    qty = row["Num Of Pallet"]
+
+    fpod_zip = str(fpod_zip).zfill(5)
+    fba_zip = str(fba_zip).zfill(5)
+    df['FPOD ZIP'] = df['FPOD ZIP'].astype(str).str.zfill(5)
+    df['FBA ZIP'] = df['FBA ZIP'].astype(str).str.zfill(5)
+
+    # Filter matching rows
+    match = df[
+        (df['FPOD ZIP'] == fpod_zip) &
+        # (df['FPOD CITY'] == fpod_city) &
+        # (df['FPOD STATE CODE'] == fpod_st_code) &
+        (df['FBA ZIP'] == fba_zip) &
+        # (df['FBA CITY'] == fba_city) &
+        # (df['FBA STATE CODE'] == fba_st_code) &
+        (df['Pallets'] == qty)
+    ]
+
+    if not match.empty:
+        valid_rows = match[
+            match['Rate'].notna() & (match['Rate'] != '') &
+            match['Carrier Name'].notna() & (match['Carrier Name'] != '')
+        ]
+
+        if not valid_rows.empty:
+            row = valid_rows.iloc[0]
+            return {
+                "Lowest Rate": row["Rate"],
+                "Carrier Name": row["Carrier Name"]
+            }
+        
+    # Fallback to API
+    return api(row)

@@ -131,32 +131,24 @@ def summarization(data):
         })
 
     for fba_code, value in lm.items():
-        if value["LM Delivery Type"] == "FTL":
-            loadability = 60
-        elif value["LM Delivery Type"] == "FTL53":
-            loadability = 60
-        elif value["LM Delivery Type"] == "LTL":
-            loadability = 60
-        elif value["LM Delivery Type"] == "Drayage":
-            loadability = 60
-        else:
-            loadability = 0
         lm_rate = value["Rate"]
-        if float(loadability) != 0:
+        if value["LM Delivery Type"] == "Drayage":
+            loadability = 60
+            
             lm_rate_pcbm = float(lm_rate) / float(loadability)
         else:
-            lm_rate_pcbm = 0.0  # or any fallback value or raise a meaningful error
+            lm_rate_pcbm = lm_rate
 
         lm_cbm = value["CBM"]
-        lm_per_cbm = lm_rate_pcbm * lm_cbm
+
         orows.append({
             "Charge Heads": f"Last Mile({fba_code})",
             "Basis": "Per CBM",
             "Basis QTY": lm_cbm,
-            "Charge In $": lm_per_cbm,
+            "Charge In $": lm_rate_pcbm,
             "Exchange Rate (USD to INR)": exchange_rate,
             "Per CBM": lm_rate_pcbm,
-            "Charge in INR": lm_per_cbm * exchange_rate
+            "Charge in INR": lm_rate_pcbm * exchange_rate
         })
 
     # Final total

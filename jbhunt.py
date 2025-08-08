@@ -90,7 +90,7 @@ def weight_to_lbs(weight):
     return float(weight) * 2.205
 
 
-def jbhunt_api(origin_zip, destination_zip, weight):
+def api(origin_zip, destination_zip, weight):
     weight_lbs = weight_to_lbs(weight)
     df = get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs)
 
@@ -115,3 +115,33 @@ def jbhunt_api(origin_zip, destination_zip, weight):
         "Carrier Name": carrier,
         "Service Provider": "J.B. Hunt"
     }
+
+def jbhunt_api(origin_zip, destination_zip, weight):
+    df = pd.read_excel(r"D:\Ayyanagouda\Last Mile Rates\Data\API Data\exfreight_output.xlsx")
+
+    origin_zip = str(origin_zip).zfill(5)
+    destination_zip = str(destination_zip).zfill(5)
+    df['FPOD ZIP'] = df['FPOD ZIP'].astype(str).str.zfill(5)
+    df['FBA ZIP'] = df['FBA ZIP'].astype(str).str.zfill(5)
+    # Filter matching rows
+    match = df[
+        (df['FPOD ZIP'] == origin_zip) &
+        (df['FBA ZIP'] == destination_zip) &
+        (df['Weight'] == weight)
+    ]
+
+    if not match.empty:
+        valid_rows = match[
+            match['Rate'].notna() & (match['Rate'] != '') &
+            match['Carrier Name'].notna() & (match['Carrier Name'] != '')
+        ]
+
+        if not valid_rows.empty:
+            row = valid_rows.iloc[0]
+            return {
+                "Lowest Rate": row["Rate"],
+                "Carrier Name": row["Carrier Name"]
+            }
+
+    # Fallback to API
+    return api(origin_zip, destination_zip, weight)

@@ -19,7 +19,7 @@ def log_to_excel(log_data):
     final_df.to_excel(LOG_FILE, index=False)
 
 
-def exfreight_api(origin, destination, weight, qty):
+def api(origin, destination, weight, qty):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_data = {
         "Timestamp": timestamp,
@@ -133,3 +133,35 @@ def exfreight_api(origin, destination, weight, qty):
         log_data["Message"] = str(e)
         log_to_excel(log_data)
         return {"error": "Exception occurred", "message": str(e)}
+    
+def exfreight_api(origin, destination, weight, qty):
+    df = pd.read_excel(r"D:\Ayyanagouda\Last Mile Rates\Data\API Data\exfreight_output.xlsx")
+    origin = str(origin).zfill(5)
+    destination = str(destination).zfill(5)
+    df['FPOD ZIP'] = df['FPOD ZIP'].astype(str).str.zfill(5)
+    df['FBA ZIP'] = df['FBA ZIP'].astype(str).str.zfill(5)
+    # Filter matching rows
+    match = df[
+        (df['FPOD ZIP'] == origin) &
+        (df['FBA ZIP'] == destination) &
+        (df['Pallets'] == qty)
+    ]
+    print(origin, destination, weight, qty)
+    print('Matching Rows lenght:',len(match))
+
+    if not match.empty:
+        valid_rows = match[
+            match['Rate'].notna() & (match['Rate'] != '') &
+            match['Carrier Name'].notna() & (match['Carrier Name'] != '')
+        ]
+
+        if not valid_rows.empty:
+            row = valid_rows.iloc[0]
+            return {
+                "Lowest Rate": row["Rate"],
+                "Carrier Name": row["Carrier Name"]
+            }
+
+    # Fallback to API
+    return api(origin, destination, weight, qty)
+
