@@ -96,13 +96,21 @@ def api(origin_zip, destination_zip, weight):
 
     if df is None or df.empty or "rates" not in df.columns:
         log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "No valid rates returned")
-        return None
+        return {
+            "Rate": 0,
+            "Carrier Name": "Jb Hunt API Failed :No valid rates returned",
+            "Service Provider": "J.B. Hunt"
+        }
 
     rates_list = df["rates"].iloc[0] if not df["rates"].isna().iloc[0] else []
 
     if not rates_list:
         log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "Empty rates list")
-        return None
+        return {
+            "Rate": 0,
+            "Carrier Name": "Jb Hunt API Failed :Empty rates list",
+            "Service Provider": "J.B. Hunt"
+        }
 
     lowest_quote = min(rates_list, key=lambda x: x.get("totalCharge", {}).get("value", float("inf")))
     rate = lowest_quote.get("totalCharge", {}).get("value")
@@ -117,7 +125,7 @@ def api(origin_zip, destination_zip, weight):
     }
 
 def jbhunt_api(origin_zip, destination_zip, weight):
-    df = pd.read_excel(r"Data/API Data/exfreight_output.xlsx")
+    df = pd.read_excel(r"Data/API Data/jbhunt_output.xlsx")
 
     origin_zip = str(origin_zip).zfill(5)
     destination_zip = str(destination_zip).zfill(5)
@@ -139,8 +147,9 @@ def jbhunt_api(origin_zip, destination_zip, weight):
         if not valid_rows.empty:
             row = valid_rows.iloc[0]
             return {
-                "Lowest Rate": row["Rate"],
-                "Carrier Name": row["Carrier Name"]
+                "Rate": row["Rate"],
+                "Carrier Name": row["Carrier Name"],
+                "Service Provider": "J.B. Hunt"
             }
 
     # Fallback to API

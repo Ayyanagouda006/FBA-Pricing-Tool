@@ -7,9 +7,7 @@ from math import ceil
 
 exchange_rate=88
 
-def summarization(data):
-    import pandas as pd
-
+def summarization(data):  
     # Step 1: Flatten nested dict into rows
     rows = []
     for dest, modes in data.items():
@@ -38,45 +36,49 @@ def summarization(data):
                 "Palletization (Per Pallet)": details.get("Palletization (Per Pallet)", 0.0)
             })
 
-    df_all = pd.DataFrame(rows)
+    output1 = pd.DataFrame(rows)
 
-    results = {}
-    booking_counter = 1
+    # Step 2: Initialize totals and mappings
+    orows = []
+    first_mile = output1["1st Mile"].astype(float).max()
+    occ = output1["OCC"].astype(float).max()
+    dcc = output1["DCC"].astype(float).max()
+    tot_cbm = output1["CBM"].sum()
+    pallets = output1["#Pallets"].sum()
+    pal_pp = output1["Palletization (Per Pallet)"].astype(float).max()
+    lm_delivery_type = list(output1["LM Delivery Type"].unique())
 
-    # Step 2: Group by FPOD and Category
-    for (fpod, category), df_group in df_all.groupby(["FPOD", "Category"]):
-        orows = []
+    # Step 3: P2P per FPOD calculation (grouped CBM and Documentation)
+    P2P_dict = {}
 
-        first_mile = df_group["1st Mile"].astype(float).max()
-        occ = df_group["OCC"].astype(float).max()
-        dcc = df_group["DCC"].astype(float).max()
-        tot_cbm = df_group["CBM"].sum()
-        pallets = df_group["#Pallets"].sum()
-        pal_pp = df_group["Palletization (Per Pallet)"].astype(float).max()
-        lm_delivery_type = list(df_group["LM Delivery Type"].unique())
+    # Group by FPOD
+    fpod_groups = output1.groupby("FPOD")
 
-        # Step 3: P2P per FPOD (inside group)
-        P2P_dict = {}
-        for fpod_inner, group_inner in df_group.groupby("FPOD"):
-            total_cbm = group_inner["CBM"].sum()
-            total_doc = group_inner["Documentation"].max()
-            avg_p2p = group_inner["P2P"].max()
-            doc_per_cbm = total_doc / total_cbm if total_cbm else 0.0
-            total_p2p = avg_p2p + doc_per_cbm
-            P2P_dict[fpod_inner] = {"CBM": total_cbm, "Total P2P": total_p2p}
+    for fpod, group in fpod_groups:
+        total_cbm = group["CBM"].sum()
+        total_doc = group["Documentation"].max()
+        avg_p2p = group["P2P"].max()  # or you can use max(), sum()/cbm, or first()
 
-        # Step 4: LM per FBA code
-        lm = {}
-        for _, row in df_group.iterrows():
-            fba_code = row["FBA / Destn"]
-            if fba_code not in lm:
-                lm[fba_code] = {"Rate": 0.0, "CBM": 0.0}
-            lm[fba_code]["Rate"] += float(row["LM Rate"])
-            lm[fba_code]["CBM"] += float(row["CBM"])
-            lm[fba_code]["LM Delivery Type"] = row["LM Delivery Type"]
+        doc_per_cbm = total_doc / total_cbm if total_cbm else 0.0
+        total_p2p = avg_p2p + doc_per_cbm
 
-        # Step 5: Charge Heads
-        orows.append({
+        P2P_dict[fpod] = {'CBM':total_cbm,'Total P2P': total_p2p}
+
+        # print(f"FPOD: {fpod}, CBM: {total_cbm}, P2P: {avg_p2p}, Doc/CBM: {doc_per_cbm}, Total P2P: {total_p2p}")
+
+
+    # Step 4: LM per FBA code
+    lm = {}
+    for _, row in output1.iterrows():
+        fba_code = row["FBA / Destn"]
+        if fba_code not in lm:
+            lm[fba_code] = {"Rate": 0.0, "CBM": 0.0}
+        lm[fba_code]["Rate"] += float(row["LM Rate"])
+        lm[fba_code]["CBM"] += float(row["CBM"])
+        lm[fba_code]["LM Delivery Type"] = row["LM Delivery Type"]
+
+    # Step 5: Compose Charge Heads table
+    orows.append({
             "Charge Heads": "1St Mile",
             "Basis": "As per Vendor",
             "Basis QTY": "",
@@ -85,96 +87,95 @@ def summarization(data):
             "Per CBM": first_mile,
             "Charge in INR": first_mile * exchange_rate
         })
+    orows.append({
+        "Charge Heads": "OCC",
+        "Basis": "Flat (Per Quote)",
+        "Basis QTY": "",
+        "Charge In $": occ,
+        "Exchange Rate (USD to INR)": exchange_rate,
+        "Per CBM": occ,
+        "Charge in INR": occ * exchange_rate
+    })
+    orows.append({
+        "Charge Heads": "DCC",
+        "Basis": "Flat (Per Quote)",
+        "Basis QTY": "",
+        "Charge In $": dcc,
+        "Exchange Rate (USD to INR)": exchange_rate,
+        "Per CBM": dcc,
+        "Charge in INR": dcc * exchange_rate
+    })
+
+    for fpod, value in P2P_dict.items():
+        cal_p2p = value['Total P2P']*value['CBM']
         orows.append({
-            "Charge Heads": "OCC",
-            "Basis": "Flat (Per Quote)",
-            "Basis QTY": "",
-            "Charge In $": occ,
-            "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": occ,
-            "Charge in INR": occ * exchange_rate
-        })
-        orows.append({
-            "Charge Heads": "DCC",
-            "Basis": "Flat (Per Quote)",
-            "Basis QTY": "",
-            "Charge In $": dcc,
-            "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": dcc,
-            "Charge in INR": dcc * exchange_rate
-        })
-
-        for fpod_inner, value in P2P_dict.items():
-            cal_p2p = value['Total P2P'] * value['CBM']
-            orows.append({
-                "Charge Heads": f"P2P({fpod_inner})",
-                "Basis": "Per CBM",
-                "Basis QTY": value['CBM'],
-                "Charge In $": cal_p2p,
-                "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM": value['Total P2P'],
-                "Charge in INR": cal_p2p * exchange_rate
-            })
-
-        if "Drayage" not in lm_delivery_type:
-            cal_pal_pp = pallets * pal_pp
-            orows.append({
-                "Charge Heads": "Palletization",
-                "Basis": "Per Pallet",
-                "Basis QTY": pallets,
-                "Charge In $": cal_pal_pp,
-                "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM": pal_pp,
-                "Charge in INR": cal_pal_pp * exchange_rate
-            })
-
-        for fba_code, value in lm.items():
-            lm_rate = value["Rate"]
-            lm_cbm = value["CBM"]
-            if value["LM Delivery Type"] == "Drayage":
-                loadability = 60
-                lm_rate_pcbm = float(lm_rate) / float(loadability)
-                charge_lm = float(lm_rate_pcbm) * float(lm_cbm)
-            else:
-                lm_rate_pcbm = lm_rate
-                charge_lm = lm_rate
-
-            orows.append({
-                "Charge Heads": f"Last Mile({fba_code})",
-                "Basis": "Per CBM",
-                "Basis QTY": lm_cbm,
-                "Charge In $": charge_lm,
-                "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM": lm_rate_pcbm,
-                "Charge in INR": charge_lm * exchange_rate
-            })
-
-        # Final total
-        output2 = pd.DataFrame(orows)
-        total_row = {
-            "Charge Heads": "Total",
+            "Charge Heads": f"P2P({fpod})",
             "Basis": "Per CBM",
-            "Basis QTY": tot_cbm,
-            "Charge In $": output2["Charge In $"].sum(),
-            "Exchange Rate (USD to INR)": "",
-            "Per CBM": output2["Charge In $"].sum() / tot_cbm if tot_cbm else 0.0,
-            "Charge in INR": output2["Charge in INR"].sum()
-        }
-        output2 = pd.concat([output2, pd.DataFrame([total_row])], ignore_index=True)
-        output2 = output2.round(2)
+            "Basis QTY": value['CBM'],
+            "Charge In $": cal_p2p,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": value['Total P2P'],
+            "Charge in INR": cal_p2p * exchange_rate
+        })
 
-        # Clean output1
-        output1 = df_group[[
-            "Origin Address", "POL", "P2P Type", "Consolidator", "FBA / Destn Coast", "FPOD",
-            "FBA / Destn", "FBA / Destn Address", "Category", "CBM", "#Pallets", "LM Delivery Type",
-            "LM Broker", "LM Carrier", "LM Rate"
-        ]]
+    if "Drayage" not in lm_delivery_type:
+        cal_pal_pp = pallets*pal_pp
+        orows.append({
+            "Charge Heads": "Palletization",
+            "Basis": "Per Pallet",
+            "Basis QTY": pallets,
+            "Charge In $": cal_pal_pp,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": pal_pp,
+            "Charge in INR": cal_pal_pp * exchange_rate
+        })
 
-        results[f"Booking {booking_counter}"] = [output1, output2]
-        booking_counter += 1
+    for fba_code, value in lm.items():
+        lm_rate = value["Rate"]
+        lm_cbm = value["CBM"]
+        if value["LM Delivery Type"] == "Drayage":
+            loadability = 60
+            
+            lm_rate_pcbm = float(lm_rate) / float(loadability)
+            charge_lm = float(lm_rate_pcbm) * float(lm_cbm)
+        else:
+            lm_rate_pcbm = lm_rate
+            charge_lm = lm_rate
 
-    return results
+        
 
+        orows.append({
+            "Charge Heads": f"Last Mile({fba_code})",
+            "Basis": "Per CBM",
+            "Basis QTY": lm_cbm,
+            "Charge In $": charge_lm,
+            "Exchange Rate (USD to INR)": exchange_rate,
+            "Per CBM": lm_rate_pcbm,
+            "Charge in INR": charge_lm * exchange_rate
+        })
+
+    # Final total
+    output2 = pd.DataFrame(orows)
+    total_row = {
+        "Charge Heads": "Total",
+        "Basis": "Per CBM",
+        "Basis QTY": tot_cbm,
+        "Charge In $": output2["Charge In $"].sum(),
+        "Exchange Rate (USD to INR)": "",
+        "Per CBM": output2["Charge In $"].sum() / tot_cbm if tot_cbm else 0.0,
+        "Charge in INR": output2["Charge in INR"].sum()
+    }
+    output2 = pd.concat([output2, pd.DataFrame([total_row])], ignore_index=True)
+    output2 = output2.round(2)
+
+    # Final cleaned output1
+    output1 = output1[[
+        "Origin Address", "POL", "P2P Type", "Consolidator", "FBA / Destn Coast", "FPOD",
+        "FBA / Destn", "FBA / Destn Address", "Category", "CBM", "#Pallets", "LM Delivery Type",
+        "LM Broker", "LM Carrier", "LM Rate"
+    ]]
+
+    return output1, output2
 
 
 def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, weight):
@@ -267,164 +268,174 @@ def ftl_rate(fpod_zip, fba_zip, qty):
             "Carrier Name": row['Carrier Name'],
             "Service Provider": row["Broker"]
         })
-
+    print(ftl_match)
+    print(ftl53_match)
     # Safely return min if any rates were found, else None
     best_ftl = min(ftl_cand, key=lambda x: x["Rate"]) if ftl_cand else None
     best_ftl53 = min(ftl53_cand, key=lambda x: x["Rate"]) if ftl53_cand else None
 
     return best_ftl, best_ftl53
 
-def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip,
-                     total_pallet_count, weight, category, service_modes):
-    drayage = None
-    ltl = None
-    ftl = None
-    ftl53 = None
-
-    # Special case for HOT category
-    if set(service_modes) == {"Drayage"}:
-        drayage = jbhunt_api(fpod_zip, fba_zip, "20411.657")
-        drayage_lowest = {
-            "Rate Type": "Drayage",
-            "Rate": drayage.get("Rate"),
-            "Carrier Name": drayage.get("Carrier Name"),
-            "Service Provider": drayage.get("Service Provider")
-        }
-        return None, None, None, drayage_lowest, drayage_lowest, drayage_lowest
-
-    # --- CASE 1: ["FTL", "FTL53"] ---
-    if set(service_modes) == {"FTL", "FTL53"}:
-        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
-
-        # Safe rate division if dict and valid
-        if isinstance(ftl_result, dict) and isinstance(ftl_result.get("Rate"), (int, float)) and ftl_result["Rate"] > 0:
-            ftl_result["Rate"] /= 21
-        if isinstance(ftl53_result, dict) and isinstance(ftl53_result.get("Rate"), (int, float)) and ftl53_result["Rate"] > 0:
-            ftl53_result["Rate"] /= 48
-
-        rates = {
-            "FTL": ftl_result if isinstance(ftl_result, dict) else None,
-            "FTL53": ftl53_result if isinstance(ftl53_result, dict) else None
-        }
-
-        lowest_mode = min(rates, key=lambda m: rates[m]["Rate"] if rates[m] and isinstance(rates[m].get("Rate"), (int, float)) else float("inf"))
-        lowest_rate_data = rates.get(lowest_mode) or {}
-
-        lowest = selected_lowest = {
-            "Rate Type": lowest_mode,
-            "Rate": lowest_rate_data.get("Rate", 0.0),
-            "Carrier Name": lowest_rate_data.get("Carrier Name", ""),
-            "Service Provider": lowest_rate_data.get("Service Provider", "")
-        }
-        return None, ftl_result, ftl53_result, None, lowest, selected_lowest
-
-    # --- CASE 2: ["FTL53"] ---
-    if set(service_modes) == {"FTL53"}:
-        _, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
-        if isinstance(ftl53_result, dict) and isinstance(ftl53_result.get("Rate"), (int, float)) and ftl53_result["Rate"] > 0:
-            ftl53_result["Rate"] /= 48
-
-        lowest = selected_lowest = {
-            "Rate Type": "FTL53",
-            "Rate": ftl53_result.get("Rate", 0.0) if isinstance(ftl53_result, dict) else 0.0,
-            "Carrier Name": ftl53_result.get("Carrier Name", "") if isinstance(ftl53_result, dict) else "",
-            "Service Provider": ftl53_result.get("Service Provider", "") if isinstance(ftl53_result, dict) else ""
-        }
-        return None, None, ftl53_result, None, lowest, selected_lowest
-
-
-    # --- CASE 3: Other combinations (with LTL or more) ---
-    if "LTL" in service_modes:
-        ltl = ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip,
-                       total_pallet_count, weight)
-
-    if "FTL" in service_modes or "FTL53" in service_modes:
-        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
-        if "FTL" in service_modes:
-            ftl = ftl_result
-        if "FTL53" in service_modes:
-            ftl53 = ftl53_result
-
-    # Compare only modes present in service_modes
-    service_rates = {
+def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, total_pallet_count, weight, service_modes):
+        # Your external rate functions
+    ltl = ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, total_pallet_count, weight)
+    ftl, ftl53 = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
+    drayage = jbhunt_api(fpod_zip, fba_zip, weight)
+    # Step 1: Associate each rate with a label
+    rate_dicts = {
         "LTL": ltl,
         "FTL": ftl,
         "FTL53": ftl53,
         "Drayage": drayage
     }
+
+    # Step 2: Filter out None or invalid entries (non-dict or missing/invalid Rate)
     valid_rates = {
-        mode: data
-        for mode, data in service_rates.items()
-        if mode in service_modes and isinstance(data, dict)
-        and isinstance(data.get("Rate"), (int, float)) and data["Rate"] > 0
+        k: v for k, v in rate_dicts.items()
+        if isinstance(v, dict) and isinstance(v.get("Rate"), (int, float)) and v["Rate"] > 0
     }
 
+    # Step 3: Determine the lowest valid rate
     if valid_rates:
-        min_mode = min(valid_rates, key=lambda m: valid_rates[m]["Rate"])
-        lowest = selected_lowest = {
-            "Rate Type": min_mode,
-            "Rate": valid_rates[min_mode]["Rate"],
-            "Carrier Name": valid_rates[min_mode].get("Carrier Name", ""),
-            "Service Provider": valid_rates[min_mode].get("Service Provider", "")
+        min_type = min(valid_rates, key=lambda k: valid_rates[k]["Rate"])
+        min_data = valid_rates[min_type]
+        lowest = {
+            "Rate Type": min_type,
+            "Rate": min_data["Rate"],
+            "Carrier Name": min_data.get("Carrier Name", ""),
+            "Service Provider": min_data.get("Service Provider", "")
         }
     else:
-        lowest = selected_lowest = {
+        lowest = {
             "Rate Type": "N/A",
             "Rate": 0.0,
             "Carrier Name": "",
             "Service Provider": ""
         }
 
-    return ltl, ftl, ftl53, drayage, lowest, selected_lowest
+    service_valid_rates = {
+        rate_type: rate_data
+        for rate_type, rate_data in rate_dicts.items()
+        if rate_type in service_modes and isinstance(rate_data, dict)
+        and isinstance(rate_data.get("Rate"), (int, float)) and rate_data["Rate"] > 0
+    }
 
+    # Step 3: Find the lowest valid rate among available services
+    if service_valid_rates:
+        min_type = min(service_valid_rates, key=lambda k: service_valid_rates[k]["Rate"])
+        min_data = service_valid_rates[min_type]
+        selected_lowest = {
+            "Rate Type": min_type,
+            "Rate": min_data["Rate"],
+            "Carrier Name": min_data.get("Carrier Name", ""),
+            "Service Provider": min_data.get("Service Provider", "")
+        }
+    else:
+        selected_lowest = {
+            "Rate Type": "N/A",
+            "Rate": 0.0,
+            "Carrier Name": "",
+            "Service Provider": ""
+        }
 
-def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: float, services) -> str:
+    return ltl,ftl,ftl53,drayage,lowest,selected_lowest
 
+def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: float) -> str:
+    """
+    Classifies the FBA code into HOT, WARM, or COLD based on activity and quote CBM.
+    If a Pre-Determined Bucket is present, it overrides the classification logic.
+
+    Args:
+        fba_locations (pd.DataFrame): DataFrame with FBA location data.
+        fba_code (str): The FBA code to classify.
+        quote_cbm (float): The CBM value from the quote.
+
+    Returns:
+        str: "HOT", "WARM", or "COLD"
+    """
     # Filter the DataFrame to the relevant FBA code
     sub_df = fba_locations[fba_locations["FBA Code"] == fba_code]
     Consolidator = sub_df["Consolidator"].values[0]
     coast = sub_df["FBA / Destn Coast"].values[0]
-    Loadability = sub_df["Loadability"].values[0]
-    last_3_weeks_avg = sub_df['Last 3 Week'].values[0]
-
     if sub_df.empty:
-        if services is None:
-            return "NON HOT", ["FTL", "FTL53", "LTL"], Consolidator, coast, 0.0
-        else:
-            return "NON HOT", services, Consolidator, coast, 0.0
+        return "COLD", Consolidator, coast # Default if FBA code not found
 
     # Check for Pre-Determined Bucket
     pre_determined = sub_df["Pre-Determined Bucket"].values[0]
     
-    if pd.notna(pre_determined) and str(pre_determined).strip() != "" and str(pre_determined) == "HOT":
-        if services == []:
-            return str(pre_determined).strip().upper(), ["Drayage"], Consolidator, coast, float(Loadability)
-        else:
-            return str(pre_determined).strip().upper(), services, Consolidator, coast, float(Loadability)
+    if pd.notna(pre_determined) and str(pre_determined).strip() != "":
+        return str(pre_determined).strip().upper(), Consolidator, coast
 
+    # Proceed with classification logic
+    last_10_weeks = sub_df["Last 10 weeks"].values[0]
+    last_1_week = sub_df["Last 1 Week"].values[0]
 
-    if quote_cbm >= 50 :
-        return "HOT", ["Drayage"], Consolidator, coast, quote_cbm
+    if (
+        last_10_weeks > 500
+        or (last_10_weeks < 500 and quote_cbm > 35)
+        or last_1_week > 65
+    ):
+        return "HOT", Consolidator, coast
+    elif quote_cbm > 15 or last_1_week > 25:
+        return "WARM", Consolidator, coast
     else:
-        if 15.0 < float(last_3_weeks_avg) <= 35.0:
-            if services == []:
-                return "NON HOT", ["FTL", "FTL53"], Consolidator, coast, 0.0
-            else:
-                return "NON HOT", services, Consolidator, coast, 0.0
-        elif float(last_3_weeks_avg) > 35.0:
-            if services == []:
-                return "NON HOT", ["FTL53"], Consolidator, coast, 0.0
-            else:
-                return "NON HOT", services, Consolidator, coast, 0.0
+        return "COLD", Consolidator, coast
+
+    
+def console_lmservice(category, fpod, des_val, pallets, quote_cbm):
+    fpod = fpod.upper()
+    category = category.upper()
+    des_val = des_val.lower()
+
+    # Condition 1
+    if fpod in ["USNYC", "USCHS"] and des_val == "single":
+        return "condition1", "Own Console", ["Drayage"]
+
+    # Condition 2
+    if fpod in ["USNYC", "USCHS"] and des_val == "multiple":
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Own Console", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Own Console", ["FTL"]
         else:
-            if services == []:
-                return "NON HOT", ["FTL", "FTL53", "LTL"], Consolidator, coast, 0.0
-            else:
-                return "NON HOT", services, Consolidator, coast, 0.0
+            return "condition2", "Own Console", ["FTL", "FTL53", "LTL"]
+
+    # Condition 3
+    if fpod not in ["USNYC", "USCHS"] and category == "HOT" and des_val == "single":
+        return "condition3", "Own Console", ["Drayage"]
+
+    # Condition 4
+    if fpod not in ["USNYC", "USCHS"] and des_val == "multiple" and quote_cbm > 25:
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Own Console", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Own Console", ["FTL"]
+        else:
+            return "condition2", "Own Console", ["FTL", "FTL53", "LTL"]
+
+    # Condition 5
+    if fpod not in ["USNYC", "USCHS"] and category == "WARM" and des_val in ['single' ,'multiple']:
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Coload", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Coload", ["FTL"]
+        else:
+            return "condition2", "Coload", ["FTL", "FTL53", "LTL"]
+
+    # Condition 6
+    if fpod not in ["USNYC", "USCHS"] and category == "COLD" and des_val in ['single' ,'multiple']:
+        if pallets > 12 and pallets < 27:
+            return "condition2", "Coload", ["FTL53"]
+        elif pallets < 12:
+            return "condition2", "Coload", ["FTL"]
+        else:
+            return "condition2", "Coload", ["FTL", "FTL53", "LTL"]
+
+    # Default fallback
+    return "", "not selected", []
 
 
-def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_scope, pickup_charges, selected_service):
-
+def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, service_modes, shipment_scope, pickup_charges):
     if shipment_scope == "Door-to-Door":
         if pickup_charges in [0.0, "0.0", "", None]:
             return {}, ["Pickup charges are required for Door-to-Door shipment scope."]
@@ -480,6 +491,13 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
             errors.append(f"⚠️ FBA Code {fba_code} not found in FBA Locations sheet.")
             continue
 
+        try:
+            category, Consolidator, coast = classify_fba_code(fba_locations, fba_code, total_cbm)
+        except Exception as e:
+            category = "Unknown"
+            Consolidator = ""
+            coast = ""
+            errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
 
         for i, row in sub_fba_locations.iterrows():
             fpod_zip = str(row['FPOD ZIP']).zfill(5)
@@ -490,34 +508,26 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
             fba_city = row['FBA CITY']
             fba_st_code = row['FBA STATE CODE']
 
-            try:
-                category, services, Consolidator, coast, lmloadability = classify_fba_code(fba_locations, fba_code, total_cbm, selected_service)
-            except Exception as e:
-                category = "Unknown"
-                Consolidator = ""
-                coast = ""
-                lmloadability = 0.0
-                errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
+            condition, console, service_mode = console_lmservice(
+                category, fpod_unloc, des_val, total_pallet_count, total_cbm
+            )
 
             if console_type == "not selected" and console_type != "both selected":
-                if fpod_unloc in ['USNYC', 'USCHS']:
-                    console_type = 'Own Console'
-                else:
-                    if 'Drayage' in services:
-                        console_type = 'Own Console'
-                    else:
-                        console_type = 'Coload'
+                console_type = console
+            if service_modes == []:
+                service_modes = service_mode
 
-            # try:
-            ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
-                fpod_city, fpod_st_code, fpod_zip,
-                fba_city, fba_st_code, fba_zip,
-                total_pallet_count, weight, category, services
-            )
-            # except Exception as e:
-            #     errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
-            #     continue
+            try:
+                ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
+                    fpod_city, fpod_st_code, fpod_zip,
+                    fba_city, fba_st_code, fba_zip,
+                    total_pallet_count, weight, service_modes
+                )
+            except Exception as e:
+                errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
+                continue
             
+            print(fba_code,lowest)
             if console_type.lower() == "both selected":
                 sub_p2p = p2p[p2p['FPOD UNLOC'] == fpod_unloc]
             else:
@@ -537,12 +547,11 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                     pol_unloc = prow['POR/POL']
                     oc_p2p_inr = prow['Origin charges per Container(INR)']
                     of_p2p = prow['Ocean Freight (USD)']
-                    p2ploadability = prow['Loadability']
-
-                    if "Drayage" in services and console_type == 'Own Console':
+                    loadability = prow['Loadability']
+                    if "Drayage" in service_modes and console_type == 'Own Console':
                         oc_p2p_usd = float(oc_p2p_inr)/float(exchange_rate)
                         t_p2p = float(oc_p2p_usd)+float(of_p2p)
-                        percbm_p2p = t_p2p/p2ploadability
+                        percbm_p2p = t_p2p/loadability
                     else:
                         percbm_p2p = prow['Per CBM(USD)']
                    
@@ -619,8 +628,8 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                         "Total CBM": total_cbm,
                         "Total Pallets": total_pallet_count,
                         "category": category,
-                        "Service Modes": services,
-                        "LM Loadability": lmloadability,
+                        "Service Modes": service_modes,
+                        "condition": condition,
                         "LTL": ltl,
                         "FTL": ftl,
                         "FTL53": ftl53,

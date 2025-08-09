@@ -286,9 +286,9 @@ def fba_quote_app():
                 is_occ,
                 is_dcc,
                 des_val,
-                service_modes,
                 shipment_scope,
-                pickup_charges
+                pickup_charges,
+                service_modes
             )
 
             # st.json(result)
@@ -316,34 +316,33 @@ def fba_quote_app():
                         if "Coload" in consoles:
                             coload_dict[location] = {"Coload": consoles["Coload"]}
 
+                    # Function to display grouped bookings
+                    def display_grouped_results(grouped_data, title_icon, title_text):
+                        if grouped_data:
+                            st.markdown(f"### {title_icon} {title_text}")
+                            grouped_results = summarization(grouped_data)  # returns dict of {'Booking x': [df1, df2]}
+
+                            for booking_name, (df_summary, df_details) in grouped_results.items():
+                                st.markdown(f"### {booking_name}")
+                                st.markdown(f"#### 📦 Summary Table")
+                                with st.container(border=True):
+                                    st.data_editor(df_summary, use_container_width=True, disabled=True)
+
+                                st.markdown(f"#### 📊 Detailed Breakdown")
+                                with st.container(border=True):
+                                    st.data_editor(df_details, use_container_width=True, disabled=True)
+
                     # Display Own Console Results
-                    if own_console_dict:
-                        st.markdown("### 🚛 Own Console Breakdown")
-                        ocoutput1, ocoutput2 = summarization(own_console_dict)
-                        
-                        with st.container(border=True):
-                            st.markdown("#### 📦 Summary Table")
-                            st.data_editor(ocoutput1, use_container_width=True, disabled=True)
-                            
-                            st.markdown("#### 📊 Detailed Breakdown")
-                            st.data_editor(ocoutput2, use_container_width=True, disabled=True)
+                    display_grouped_results(own_console_dict, "🚛", "Own Console Breakdown")
 
                     # Display Coload Results
-                    if coload_dict:
-                        st.markdown("### 🚚 Coload Breakdown")
-                        cooutput1, cooutput2 = summarization(coload_dict)
-                        
-                        with st.container(border=True):
-                            st.markdown("#### 📦 Summary Table")
-                            st.data_editor(cooutput1, use_container_width=True, disabled=True)
-                            
-                            st.markdown("#### 📊 Detailed Breakdown")
-                            st.data_editor(cooutput2, use_container_width=True, disabled=True)
+                    display_grouped_results(coload_dict, "🚚", "Coload Breakdown")
 
                 except Exception as e:
                     st.error(f"❌ An error occurred while displaying the breakdown.\n\nDetails: `{e}`")
             else:
                 st.warning("⚠️ No valid rate results to display.")
+
 
 
 
