@@ -26,6 +26,7 @@ def summarization(data):
                 "Category": details.get("category", ""),
                 "CBM": details.get("Total CBM", 0.0),
                 "#Pallets": details.get("Total Pallets", 0.0),
+                "Service Modes":details.get("Service Modes", 0.0),
                 "LM Delivery Type": details.get("Selected lm", {}).get("Rate Type", ""),
                 "LM Rate": details.get("Selected lm", {}).get("Rate", 0.0),
                 "LM Broker": details.get("Selected lm", {}).get("Service Provider", ""),
@@ -74,6 +75,7 @@ def summarization(data):
             lm[fba_code]["Rate"] += float(row["LM Rate"])
             lm[fba_code]["CBM"] += float(row["CBM"])
             lm[fba_code]["LM Delivery Type"] = row["LM Delivery Type"]
+            lm[fba_code]["Service Modes"] = row["Service Modes"]
 
         # Step 5: Charge Heads
         orows.append({
@@ -131,13 +133,21 @@ def summarization(data):
         for fba_code, value in lm.items():
             lm_rate = value["Rate"]
             lm_cbm = value["CBM"]
+            service_modes = value["Service Modes"]
             if value["LM Delivery Type"] == "Drayage":
                 loadability = 60
                 lm_rate_pcbm = float(lm_rate) / float(loadability)
                 charge_lm = float(lm_rate_pcbm) * float(lm_cbm)
             else:
-                lm_rate_pcbm = lm_rate
-                charge_lm = lm_rate
+                if set(service_modes) == {"FTL", "FTL53"}:
+                    lm_rate_pcbm = lm_rate
+                    charge_lm = float(lm_rate) * float(lm_cbm)
+                elif set(service_modes) == {"FTL53"}:
+                    lm_rate_pcbm = lm_rate
+                    charge_lm = float(lm_rate) * float(lm_cbm)
+                else:
+                    lm_rate_pcbm = lm_rate
+                    charge_lm = lm_rate
 
             orows.append({
                 "Charge Heads": f"Last Mile({fba_code})",
@@ -300,7 +310,7 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
         if isinstance(ftl_result, dict) and isinstance(ftl_result.get("Rate"), (int, float)) and ftl_result["Rate"] > 0:
             ftl_result["Rate"] /= 21
         if isinstance(ftl53_result, dict) and isinstance(ftl53_result.get("Rate"), (int, float)) and ftl53_result["Rate"] > 0:
-            ftl53_result["Rate"] /= 48
+            ftl53_result["Rate"] /= 21
 
         rates = {
             "FTL": ftl_result if isinstance(ftl_result, dict) else None,
@@ -508,15 +518,15 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                     else:
                         console_type = 'Coload'
 
-            # try:
-            ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
-                fpod_city, fpod_st_code, fpod_zip,
-                fba_city, fba_st_code, fba_zip,
-                total_pallet_count, weight, category, services
-            )
-            # except Exception as e:
-            #     errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
-            #     continue
+            try:
+                ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
+                    fpod_city, fpod_st_code, fpod_zip,
+                    fba_city, fba_st_code, fba_zip,
+                    total_pallet_count, weight, category, services
+                )
+            except Exception as e:
+                errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
+                continue
             
             if console_type.lower() == "both selected":
                 sub_p2p = p2p[p2p['FPOD UNLOC'] == fpod_unloc]
