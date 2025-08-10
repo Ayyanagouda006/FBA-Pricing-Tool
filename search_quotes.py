@@ -21,16 +21,12 @@ def search_quotations_app():
             for _, row in filtered_df.iterrows():
                 service_modes_list = ast.literal_eval(row['Service Modes'])
                 result = ", ".join(service_modes_list)
-                with st.expander(f"📍 FBA Code: {row['FBA Code']}"):
+                with st.expander(f"📍 FBA Code: {row['FBA Code']}({str(row['FBA Zip Code']).zfill(5)})"):
                     # Summary metrics
-                    st.markdown(
-                        f"""
-                        **CBM:** {row['Total CBM']} | **Pallets:** {row['Total Pallets']}  
-                        **Weight:** {row['Total Weight']} | **Pickup Charges:** {row['Pick-Up Charges']}  
-                        **P2P Charges:** {row['PER CBM P2P']} | **OCC:** {row['OCC']} | **DCC:** {row['DCC']}  
-                        **Category:** {row['category']} | **Service Modes:** {result}
-                        """
-                    )
+                    st.markdown(f"""**POL:** {row['POL']} | **POD:** {row['POD']} | **POD ZIP:** {str(row['POD Zip']).zfill(5)} """)
+                    st.markdown(f"""**CBM:** {row['Total CBM']} | **Pallets:** {row['Total Pallets']} | **Weight:** {row['Total Weight']} """)
+                    st.markdown(f"""**Pickup Charges:** {row['Pick-Up Charges']} | **P2P Charges:** {row['PER CBM P2P']} | **OCC:** {row['OCC']} | **DCC:** {row['DCC']} """)
+                    st.markdown(f"""**Category:** {row['category']} | **Service Modes:** {result}""")
 
                     # Service Mode Rates Side by Side
                     cols = st.columns(4)
