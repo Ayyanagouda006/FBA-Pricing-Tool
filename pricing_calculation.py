@@ -28,6 +28,7 @@ def summarization(data):
                 "#Pallets": details.get("Total Pallets", 0.0),
                 "Service Modes":details.get("Service Modes", 0.0),
                 "LM Delivery Type": details.get("Selected lm", {}).get("Rate Type", ""),
+                "LM Loadability":details.get("LM Loadability", 0.0),
                 "LM Rate": details.get("Selected lm", {}).get("Rate", 0.0),
                 "LM Broker": details.get("Selected lm", {}).get("Service Provider", ""),
                 "LM Carrier": details.get("Selected lm", {}).get("Carrier Name", ""),
@@ -75,6 +76,7 @@ def summarization(data):
             lm[fba_code]["Rate"] += float(row["LM Rate"])
             lm[fba_code]["CBM"] += float(row["CBM"])
             lm[fba_code]["LM Delivery Type"] = row["LM Delivery Type"]
+            lm[fba_code]['LM Loadability'] = row['LM Loadability']
             lm[fba_code]["Service Modes"] = row["Service Modes"]
 
         # Step 5: Charge Heads
@@ -85,7 +87,8 @@ def summarization(data):
             "Charge In $": first_mile,
             "Exchange Rate (USD to INR)": exchange_rate,
             "Per CBM": first_mile,
-            "Charge in INR": first_mile * exchange_rate
+            "Charge in INR": first_mile * exchange_rate,
+            "Per CBM in INR": first_mile * exchange_rate
         })
         orows.append({
             "Charge Heads": "OCC",
@@ -94,7 +97,8 @@ def summarization(data):
             "Charge In $": occ,
             "Exchange Rate (USD to INR)": exchange_rate,
             "Per CBM": occ,
-            "Charge in INR": occ * exchange_rate
+            "Charge in INR": occ * exchange_rate,
+            "Per CBM in INR": occ * exchange_rate
         })
         orows.append({
             "Charge Heads": "DCC",
@@ -103,11 +107,12 @@ def summarization(data):
             "Charge In $": dcc,
             "Exchange Rate (USD to INR)": exchange_rate,
             "Per CBM": dcc,
-            "Charge in INR": dcc * exchange_rate
+            "Charge in INR": dcc * exchange_rate,
+            "Per CBM in INR": dcc * exchange_rate
         })
 
         for fpod_inner, value in P2P_dict.items():
-            cal_p2p = value['Total P2P'] * value['CBM']
+            cal_p2p = float(value['Total P2P']) * float(value['CBM'])
             orows.append({
                 "Charge Heads": f"P2P({fpod_inner})",
                 "Basis": "Per CBM",
@@ -115,7 +120,8 @@ def summarization(data):
                 "Charge In $": cal_p2p,
                 "Exchange Rate (USD to INR)": exchange_rate,
                 "Per CBM": value['Total P2P'],
-                "Charge in INR": cal_p2p * exchange_rate
+                "Charge in INR": cal_p2p * exchange_rate,
+                "Per CBM in INR": float(value['Total P2P']) * exchange_rate
             })
 
         if "Drayage" not in lm_delivery_type:
@@ -127,7 +133,8 @@ def summarization(data):
                 "Charge In $": cal_pal_pp,
                 "Exchange Rate (USD to INR)": exchange_rate,
                 "Per CBM": pal_pp,
-                "Charge in INR": cal_pal_pp * exchange_rate
+                "Charge in INR": cal_pal_pp * exchange_rate,
+                "Per CBM in INR": float(pal_pp) * exchange_rate
             })
 
         for fba_code, value in lm.items():
@@ -135,19 +142,35 @@ def summarization(data):
             lm_cbm = value["CBM"]
             service_modes = value["Service Modes"]
             if value["LM Delivery Type"] == "Drayage":
-                loadability = 60
+                loadability = value['LM Loadability']
                 lm_rate_pcbm = float(lm_rate) / float(loadability)
                 charge_lm = float(lm_rate_pcbm) * float(lm_cbm)
+                if charge_lm >= 120.0:
+                    charge_lm = charge_lm
+                else:
+                    charge_lm = 120.0
             else:
                 if set(service_modes) == {"FTL", "FTL53"}:
                     lm_rate_pcbm = lm_rate
                     charge_lm = float(lm_rate) * float(lm_cbm)
+                    if charge_lm >= 120.0:
+                        charge_lm = charge_lm
+                    else:
+                        charge_lm = 120.0
                 elif set(service_modes) == {"FTL53"}:
                     lm_rate_pcbm = lm_rate
                     charge_lm = float(lm_rate) * float(lm_cbm)
+                    if charge_lm >= 120.0:
+                        charge_lm = charge_lm
+                    else:
+                        charge_lm = 120.0
                 else:
                     lm_rate_pcbm = lm_rate
                     charge_lm = lm_rate
+                    if charge_lm >= 120.0:
+                        charge_lm = charge_lm
+                    else:
+                        charge_lm = 120.0
 
             orows.append({
                 "Charge Heads": f"Last Mile({fba_code})",
@@ -156,19 +179,23 @@ def summarization(data):
                 "Charge In $": charge_lm,
                 "Exchange Rate (USD to INR)": exchange_rate,
                 "Per CBM": lm_rate_pcbm,
-                "Charge in INR": charge_lm * exchange_rate
+                "Charge in INR": charge_lm * exchange_rate,
+                "Per CBM in INR": float(lm_rate_pcbm) * exchange_rate
             })
 
         # Final total
         output2 = pd.DataFrame(orows)
+        total_percbm = output2["Charge In $"].sum() / tot_cbm if tot_cbm else 0.0
+        total_charge = output2["Charge In $"].sum()
         total_row = {
             "Charge Heads": "Total",
             "Basis": "Per CBM",
             "Basis QTY": tot_cbm,
-            "Charge In $": output2["Charge In $"].sum(),
+            "Charge In $": total_charge ,
             "Exchange Rate (USD to INR)": "",
-            "Per CBM": output2["Charge In $"].sum() / tot_cbm if tot_cbm else 0.0,
-            "Charge in INR": output2["Charge in INR"].sum()
+            "Per CBM": total_percbm,
+            "Charge in INR": total_charge * exchange_rate,
+            "Per CBM in INR": total_percbm * exchange_rate
         }
         output2 = pd.concat([output2, pd.DataFrame([total_row])], ignore_index=True)
         output2 = output2.round(2)
@@ -233,8 +260,8 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, 
         for _, row in offline_match.iterrows():
             candidates.append({
                 "Rate": round(float(row['Rate']), 2),
-                "Carrier Name": row['Carrier Name'],
-                "Service Provider": row["Broker"]
+                "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
+                "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
             })
     except Exception as e:
         print("Error matching offline Excel rate:", e)
@@ -261,9 +288,12 @@ def ftl_rate(fpod_zip, fba_zip, qty):
     for _, row in ftl_match.iterrows():
         ftl_cand.append({
             "Rate": round(float(row['Rate']), 2),
-            "Carrier Name": row['Carrier Name'],
-            "Service Provider": row["Broker"]
+            "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
+            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
         })
+
+    ftl_jb = jbhunt_api(fpod_zip, fba_zip, "5000")
+    ftl_cand.append(ftl_jb)
 
     ftl53_cand = []
     ftl53_match = lm_ftl53[
@@ -274,10 +304,12 @@ def ftl_rate(fpod_zip, fba_zip, qty):
     for _, row in ftl53_match.iterrows():
         ftl53_cand.append({
             "Rate": round(float(row['Rate']), 2),
-            "Carrier Name": row['Carrier Name'],
-            "Service Provider": row["Broker"]
+            "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
+            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
         })
 
+    ftl53_jb = jbhunt_api(fpod_zip, fba_zip, "20411.657")
+    ftl53_cand.append(ftl53_jb)
     # Safely return min if any rates were found, else None
     best_ftl = min(ftl_cand, key=lambda x: x["Rate"]) if ftl_cand else None
     best_ftl53 = min(ftl53_cand, key=lambda x: x["Rate"]) if ftl53_cand else None
