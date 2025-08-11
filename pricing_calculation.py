@@ -469,7 +469,7 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
                 return "NON HOT", services, Consolidator, coast, 0.0
 
 
-def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_scope, pickup_charges, 
+def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipment_scope, pickup_charges, 
           selected_service, grand_total_weight, grand_total_cbm):
 
     if shipment_scope == "Door-to-Door":
@@ -546,7 +546,8 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                 lmloadability = 0.0
                 errors.append(f"⚠️ Error classifying FBA code {fba_code}: {e}")
 
-            if console_type == "not selected" and console_type != "both selected":
+            if console_selected == "not selected" and console_selected != "both selected":
+                
                 if fpod_unloc in ['USNYC', 'USCHS']:
                     console_type = 'Own Console'
                 else:
@@ -554,6 +555,11 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                         console_type = 'Own Console'
                     else:
                         console_type = 'Coload'
+            else:   
+                console_type = console_selected
+
+            print(fba_code,fpod_unloc,console_type)
+
 
             try:
                 ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
