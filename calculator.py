@@ -171,6 +171,9 @@ def fba_quote_app():
                 destination_value = ""
             st.text_input("Destination(s)", value=destination_value, disabled=True)
 
+        grand_total_weight = 0.0
+        grand_total_cbm = 0.0
+
         for idx, dest_entry in enumerate(dests):
             dest = dest_entry.get("destination", "Unknown Destination")
             cargo_list = dest_entry.get("cargoDetails", [])
@@ -222,6 +225,10 @@ def fba_quote_app():
                 unsafe_allow_html=True
             )
 
+            grand_total_weight += total_weight_all
+            grand_total_cbm += total_volume_all
+
+
         col_oc, col_cl = st.columns(2)
         with col_oc:
             is_own_console = st.checkbox("Own Console", key="own_console")
@@ -238,6 +245,12 @@ def fba_quote_app():
         with col_dry:
             is_dry = st.checkbox("Drayage", key="drayage")
         
+        st.markdown(
+            f"✅ **Quotation Total Weight:** `{grand_total_weight}` "
+            f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "
+            f"**Quotation Total Volume:** `{grand_total_cbm}`",
+            unsafe_allow_html=True
+        )
         pickup_charges = 0.0  # Default
         shipment_scope = st.session_state.get("scope", "")
         if shipment_scope == 'Door-to-Door':
@@ -288,7 +301,9 @@ def fba_quote_app():
                 des_val,
                 shipment_scope,
                 pickup_charges,
-                service_modes
+                service_modes,
+                grand_total_weight,
+                grand_total_cbm
             )
 
             # st.json(result)

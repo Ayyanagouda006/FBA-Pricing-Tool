@@ -37,7 +37,8 @@ def summarization(data):
                 "DCC": details.get("DCC", 0.0),
                 "P2P": details.get("PER CBM P2P", 0.0),
                 "Documentation": details.get("Documentation", 0.0),
-                "Palletization (Per Pallet)": details.get("Palletization (Per Pallet)", 0.0)
+                "Palletization (Per Pallet)": details.get("Palletization (Per Pallet)", 0.0),
+                "Quotation Total CBM" : details.get("Quotation Total CBM",0.0)
             })
 
     df_all = pd.DataFrame(rows)
@@ -50,9 +51,12 @@ def summarization(data):
         orows = []
 
         first_mile = df_group["1st Mile"].astype(float).max()
+        quote_tot_cbm = df_group["Quotation Total CBM"].astype(float).max()
+        first_mile_pcbm = float(first_mile) / float(quote_tot_cbm)
         occ = df_group["OCC"].astype(float).max()
         dcc = df_group["DCC"].astype(float).max()
         tot_cbm = df_group["CBM"].sum()
+        tot_first_mile = float(first_mile_pcbm) * float(tot_cbm)
         pallets = df_group["#Pallets"].sum()
         pal_pp = df_group["Palletization (Per Pallet)"].astype(float).max()
         lm_delivery_type = list(df_group["LM Delivery Type"].unique())
@@ -84,11 +88,11 @@ def summarization(data):
             "Charge Heads": "1St Mile",
             "Basis": "As per Vendor",
             "Basis QTY": "",
-            "Charge In $": first_mile,
+            "Charge In $": tot_first_mile,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": first_mile,
-            "Charge in INR": first_mile * exchange_rate,
-            "Per CBM in INR": first_mile * exchange_rate
+            "Per CBM": tot_first_mile,
+            "Charge in INR": tot_first_mile * exchange_rate,
+            "Per CBM in INR": tot_first_mile * exchange_rate
         })
         orows.append({
             "Charge Heads": "OCC",
@@ -465,7 +469,8 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
                 return "NON HOT", services, Consolidator, coast, 0.0
 
 
-def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_scope, pickup_charges, selected_service):
+def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_scope, pickup_charges, 
+          selected_service, grand_total_weight, grand_total_cbm):
 
     if shipment_scope == "Door-to-Door":
         if pickup_charges in [0.0, "0.0", "", None]:
@@ -587,6 +592,11 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                         percbm_p2p = t_p2p/p2ploadability
                     else:
                         percbm_p2p = prow['Per CBM(USD)']
+
+                    if total_cbm >= 1:
+                        total_cbm = total_cbm
+                    else:
+                        total_cbm = 1
                    
                     total_p2p = percbm_p2p * total_cbm
                     console = prow['P2P Type']
@@ -658,7 +668,9 @@ def rates(origin, cleaned_data, console_type, is_occ, is_dcc, des_val, shipment_
                         "coast": coast,
                         "Qty": qty,
                         "Total Weight": weight,
+                        "Quotation Total Weight": grand_total_weight,
                         "Total CBM": total_cbm,
+                        "Quotation Total CBM":grand_total_cbm, 
                         "Total Pallets": total_pallet_count,
                         "category": category,
                         "Service Modes": services,
