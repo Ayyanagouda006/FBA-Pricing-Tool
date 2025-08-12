@@ -428,6 +428,7 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
 
     # Filter the DataFrame to the relevant FBA code
     sub_df = fba_locations[fba_locations["FBA Code"] == fba_code]
+    sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
     Consolidator = sub_df["Consolidator"].values[0]
     coast = sub_df["FBA / Destn Coast"].values[0]
     Loadability = sub_df["Loadability"].values[0]
