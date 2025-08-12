@@ -4,17 +4,56 @@ from heyprimo import heyprimo_api
 from exfreight import exfreight_api
 from jbhunt import jbhunt_api
 from math import ceil
+import os
+from datetime import datetime
 
 exchange_rate=88
 
-def summarization(data):
-    import pandas as pd
+def log_booking(booking_id, quotation_no, output1, output2, log_file):
+    # Prefix column names
+    summary_df = output1.copy()
+    summary_df.columns = [f"Summary.{col}" for col in summary_df.columns]
 
+    breakdown_df = output2.copy()
+    breakdown_df.columns = [f"Breakdown.{col}" for col in breakdown_df.columns]
+
+    # Reset indexes to align
+    summary_df = summary_df.reset_index(drop=True)
+    breakdown_df = breakdown_df.reset_index(drop=True)
+
+    # Pad shorter DataFrame so both match in length
+    max_len = max(len(summary_df), len(breakdown_df))
+    summary_df = summary_df.reindex(range(max_len))
+    breakdown_df = breakdown_df.reindex(range(max_len))
+
+    # Merge both parts
+    combined_df = pd.concat([summary_df, breakdown_df], axis=1)
+
+    # Add log metadata
+    combined_df["Booking ID"] = booking_id
+    combined_df["Quotation Number"] = quotation_no
+    combined_df["Log Timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Ensure log directory exists
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+    # Append or create log file
+    if not os.path.exists(log_file):
+        combined_df.to_excel(log_file, index=False)
+    else:
+        existing_logs = pd.read_excel(log_file)
+        updated_logs = pd.concat([existing_logs, combined_df], ignore_index=True)
+        updated_logs.to_excel(log_file, index=False)
+
+
+
+def summarization(data):
     # Step 1: Flatten nested dict into rows
     rows = []
     for dest, modes in data.items():
         for mode, details in modes.items():
             rows.append({
+                "Agquote ID":details.get("Agquote ID", ""),
                 "Origin Address": details.get("Origin", ""),
                 "POL": details.get("POL", ""),
                 "P2P Type": mode,
@@ -45,11 +84,15 @@ def summarization(data):
 
     results = {}
     booking_counter = 1
+    # Create logs folder if it doesn't exist
+    os.makedirs("Logs", exist_ok=True)
+    log_file = "Logs/bookings_log.xlsx"
 
     # Step 2: Group by FPOD and Category
     for (fpod, category), df_group in df_all.groupby(["FPOD", "Category"]):
         orows = []
 
+        quote_id = df_group["Agquote ID"].values[0]
         first_mile = df_group["1st Mile"].astype(float).max()
         quote_tot_cbm = df_group["Quotation Total CBM"].astype(float).max()
         first_mile_pcbm = float(first_mile) / float(quote_tot_cbm)
@@ -90,7 +133,7 @@ def summarization(data):
             "Basis QTY": "",
             "Charge In $": tot_first_mile,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": tot_first_mile,
+            "Per CBM In $": tot_first_mile,
             "Charge in INR": tot_first_mile * exchange_rate,
             "Per CBM in INR": tot_first_mile * exchange_rate
         })
@@ -100,7 +143,7 @@ def summarization(data):
             "Basis QTY": "",
             "Charge In $": occ,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": occ,
+            "Per CBM In $": occ,
             "Charge in INR": occ * exchange_rate,
             "Per CBM in INR": occ * exchange_rate
         })
@@ -110,7 +153,7 @@ def summarization(data):
             "Basis QTY": "",
             "Charge In $": dcc,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM": dcc,
+            "Per CBM In $": dcc,
             "Charge in INR": dcc * exchange_rate,
             "Per CBM in INR": dcc * exchange_rate
         })
@@ -123,7 +166,7 @@ def summarization(data):
                 "Basis QTY": value['CBM'],
                 "Charge In $": cal_p2p,
                 "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM": value['Total P2P'],
+                "Per CBM In $": value['Total P2P'],
                 "Charge in INR": cal_p2p * exchange_rate,
                 "Per CBM in INR": float(value['Total P2P']) * exchange_rate
             })
@@ -136,7 +179,7 @@ def summarization(data):
                 "Basis QTY": pallets,
                 "Charge In $": cal_pal_pp,
                 "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM": pal_pp,
+                "Per CBM In $": pal_pp,
                 "Charge in INR": cal_pal_pp * exchange_rate,
                 "Per CBM in INR": float(pal_pp) * exchange_rate
             })
@@ -182,7 +225,7 @@ def summarization(data):
                 "Basis QTY": lm_cbm,
                 "Charge In $": charge_lm,
                 "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM": lm_rate_pcbm,
+                "Per CBM In $": lm_rate_pcbm,
                 "Charge in INR": charge_lm * exchange_rate,
                 "Per CBM in INR": float(lm_rate_pcbm) * exchange_rate
             })
@@ -197,7 +240,7 @@ def summarization(data):
             "Basis QTY": tot_cbm,
             "Charge In $": total_charge ,
             "Exchange Rate (USD to INR)": "",
-            "Per CBM": total_percbm,
+            "Per CBM In $": total_percbm,
             "Charge in INR": total_charge * exchange_rate,
             "Per CBM in INR": total_percbm * exchange_rate
         }
@@ -211,6 +254,10 @@ def summarization(data):
             "LM Broker", "LM Carrier", "LM Rate"
         ]]
 
+        # --- Booking Logging ---
+        log_booking(f"Booking {booking_counter}", quote_id, output1, output2, log_file)
+
+        # -----------------------
         results[f"Booking {booking_counter}"] = [output1, output2]
         booking_counter += 1
 
@@ -470,12 +517,14 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
                 return "NON HOT", services, Consolidator, coast, 0.0
 
 
-def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipment_scope, pickup_charges, 
+def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipment_scope, pickup_charges_inr, 
           selected_service, grand_total_weight, grand_total_cbm):
 
     if shipment_scope == "Door-to-Door":
-        if pickup_charges in [0.0, "0.0", "", None]:
+        if pickup_charges_inr in [0.0, "0.0", "", None]:
             return {}, ["Pickup charges are required for Door-to-Door shipment scope."]
+        else:
+            pickup_charges = float(pickup_charges_inr) / float(exchange_rate)
 
     # Load Excel sheets
     try:
@@ -688,6 +737,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                         "Drayage": drayage,
                         'lowest lm': lowest,
                         'Selected lm': selected_lowest,
+                        'Pick-Up Charges(INR)':pickup_charges_inr,
                         "Pick-Up Charges": pickup_charges,
                         "PER CBM P2P": percbm_p2p,
                         "PER CBM P2P & Doc": percbm_p2p + doc_pcbm,

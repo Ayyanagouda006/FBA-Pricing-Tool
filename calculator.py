@@ -229,21 +229,21 @@ def fba_quote_app():
             grand_total_cbm += total_volume_all
 
 
-        col_oc, col_cl = st.columns(2)
-        with col_oc:
-            is_own_console = st.checkbox("Own Console", key="own_console")
-        with col_cl:
-            is_co_load = st.checkbox("Co Load", key="co_load")
+        # col_oc, col_cl = st.columns(2)
+        # with col_oc:
+        #     is_own_console = st.checkbox("Own Console", key="own_console")
+        # with col_cl:
+        #     is_co_load = st.checkbox("Co Load", key="co_load")
 
-        col_ltl, col_ftl, col_ftl53, col_dry = st.columns(4)
-        with col_ltl:
-            is_ltl = st.checkbox("LTL", key="ltl")
-        with col_ftl:
-            is_ftl = st.checkbox("FTL", key="ftl")
-        with col_ftl53:
-            is_ftl53 = st.checkbox("FTL53", key="ftl53")
-        with col_dry:
-            is_dry = st.checkbox("Drayage", key="drayage")
+        # col_ltl, col_ftl, col_ftl53, col_dry = st.columns(4)
+        # with col_ltl:
+        #     is_ltl = st.checkbox("LTL", key="ltl")
+        # with col_ftl:
+        #     is_ftl = st.checkbox("FTL", key="ftl")
+        # with col_ftl53:
+        #     is_ftl53 = st.checkbox("FTL53", key="ftl53")
+        # with col_dry:
+        #     is_dry = st.checkbox("Drayage", key="drayage")
         
         st.markdown(
             f"✅ **Quotation Total Weight:** `{grand_total_weight}` "
@@ -251,10 +251,10 @@ def fba_quote_app():
             f"**Quotation Total Volume:** `{grand_total_cbm}`",
             unsafe_allow_html=True
         )
-        pickup_charges = 0.0  # Default
+        pickup_charges_inr = 0.0  # Default
         shipment_scope = st.session_state.get("scope", "")
         if shipment_scope == 'Door-to-Door':
-            pickup_charges = st.number_input("Enter Pickup Charges (USD)", min_value=0.0, step=10.0)
+            pickup_charges_inr = st.number_input("Enter Pickup Charges (INR)", min_value=0.0, step=10.0)
 
         submit = st.form_submit_button("🔎 Get Rates")
 
@@ -265,24 +265,24 @@ def fba_quote_app():
         elif not st.session_state.form_data_loaded:
             st.warning("⚠️ Please load the quote details first by entering a valid quote ID.")
         else:
-            if is_own_console and not is_co_load:
-                console_type = "Own Console"
-            elif is_co_load and not is_own_console:
-                console_type = "Coload"
-            elif is_own_console and is_co_load:
-                console_type = "both selected"
-            else:
-                console_type = "not selected"
+            # if is_own_console and not is_co_load:
+            #     console_type = "Own Console"
+            # elif is_co_load and not is_own_console:
+            #     console_type = "Coload"
+            # elif is_own_console and is_co_load:
+            #     console_type = "both selected"
+            # else:
+            #     console_type = "not selected"
 
-            service_modes = []
-            if is_ltl:
-                service_modes.append("LTL")
-            if is_ftl:
-                service_modes.append("FTL")
-            if is_ftl53:
-                service_modes.append("FTL53")
-            if is_dry:
-                service_modes.append("Drayage")
+            # service_modes = []
+            # if is_ltl:
+            #     service_modes.append("LTL")
+            # if is_ftl:
+            #     service_modes.append("FTL")
+            # if is_ftl53:
+            #     service_modes.append("FTL53")
+            # if is_dry:
+            #     service_modes.append("Drayage")
 
             is_occ = st.session_state.get("fbaOCC", "").lower() == "yes"
             is_dcc = st.session_state.get("fbaDCC", "").lower() == "yes"
@@ -292,6 +292,8 @@ def fba_quote_app():
             cleaned_data = remove_ids(st.session_state.multidest)
 
             # ✅ Updated call with error handling
+            console_type = "not selected"
+            service_modes = []
             result, errors = rates(
                 origin,
                 cleaned_data,
@@ -300,7 +302,7 @@ def fba_quote_app():
                 is_dcc,
                 des_val,
                 shipment_scope,
-                pickup_charges,
+                pickup_charges_inr,
                 service_modes,
                 grand_total_weight,
                 grand_total_cbm
