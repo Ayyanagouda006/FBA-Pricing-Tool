@@ -133,29 +133,33 @@ def summarization(data):
             "Basis QTY": "",
             "Charge In $": tot_first_mile,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM In $": tot_first_mile,
+            "Per CBM In $": first_mile_pcbm,
             "Charge in INR": tot_first_mile * exchange_rate,
-            "Per CBM in INR": tot_first_mile * exchange_rate
+            "Per CBM in INR": first_mile_pcbm * exchange_rate
         })
+
+        occ_pcbm = float(occ) / float(tot_cbm)
         orows.append({
             "Charge Heads": "OCC",
             "Basis": "Flat (Per Quote)",
             "Basis QTY": "",
             "Charge In $": occ,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM In $": occ,
+            "Per CBM In $": occ_pcbm,
             "Charge in INR": occ * exchange_rate,
-            "Per CBM in INR": occ * exchange_rate
+            "Per CBM in INR": occ_pcbm * exchange_rate
         })
+
+        dcc_pcbm = float(dcc) / float(tot_cbm)
         orows.append({
             "Charge Heads": "DCC",
             "Basis": "Flat (Per Quote)",
             "Basis QTY": "",
             "Charge In $": dcc,
             "Exchange Rate (USD to INR)": exchange_rate,
-            "Per CBM In $": dcc,
+            "Per CBM In $": dcc_pcbm,
             "Charge in INR": dcc * exchange_rate,
-            "Per CBM in INR": dcc * exchange_rate
+            "Per CBM in INR": dcc_pcbm * exchange_rate
         })
 
         for fpod_inner, value in P2P_dict.items():
@@ -173,15 +177,16 @@ def summarization(data):
 
         if "Drayage" not in lm_delivery_type:
             cal_pal_pp = pallets * pal_pp
+            pal_pcbm = float(cal_pal_pp)/ float(tot_cbm)
             orows.append({
                 "Charge Heads": "Palletization",
                 "Basis": "Per Pallet",
                 "Basis QTY": pallets,
                 "Charge In $": cal_pal_pp,
                 "Exchange Rate (USD to INR)": exchange_rate,
-                "Per CBM In $": pal_pp,
+                "Per CBM In $": pal_pcbm,
                 "Charge in INR": cal_pal_pp * exchange_rate,
-                "Per CBM in INR": float(pal_pp) * exchange_rate
+                "Per CBM in INR": float(pal_pcbm) * exchange_rate
             })
 
         for fba_code, value in lm.items():
@@ -190,34 +195,41 @@ def summarization(data):
             service_modes = value["Service Modes"]
             if value["LM Delivery Type"] == "Drayage":
                 loadability = value['LM Loadability']
-                lm_rate_pcbm = float(lm_rate) / float(loadability)
-                charge_lm = float(lm_rate_pcbm) * float(lm_cbm)
+                lm_pcbm = float(lm_rate) / float(loadability)
+                charge_lm = float(lm_pcbm) * float(lm_cbm)
                 if charge_lm >= 120.0:
                     charge_lm = charge_lm
+                    lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                 else:
                     charge_lm = 120.0
+                    lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
             else:
                 if set(service_modes) == {"FTL", "FTL53"}:
-                    lm_rate_pcbm = lm_rate
                     charge_lm = float(lm_rate) * float(lm_cbm)
                     if charge_lm >= 120.0:
                         charge_lm = charge_lm
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                     else:
                         charge_lm = 120.0
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                 elif set(service_modes) == {"FTL53"}:
-                    lm_rate_pcbm = lm_rate
+                    
                     charge_lm = float(lm_rate) * float(lm_cbm)
                     if charge_lm >= 120.0:
                         charge_lm = charge_lm
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                     else:
                         charge_lm = 120.0
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                 else:
-                    lm_rate_pcbm = lm_rate
+                    
                     charge_lm = lm_rate
                     if charge_lm >= 120.0:
                         charge_lm = charge_lm
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                     else:
                         charge_lm = 120.0
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
 
             orows.append({
                 "Charge Heads": f"Last Mile({fba_code})",
@@ -519,7 +531,8 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
 
 def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipment_scope, pickup_charges_inr, 
           selected_service, grand_total_weight, grand_total_cbm):
-
+    
+    pickup_charges = 0.0
     if shipment_scope == "Door-to-Door":
         if pickup_charges_inr in [0.0, "0.0", "", None]:
             return {}, ["Pickup charges are required for Door-to-Door shipment scope."]
@@ -608,9 +621,6 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
             else:   
                 console_type = console_selected
 
-            print(fba_code,fpod_unloc,console_type)
-
-
             try:
                 ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
                     fpod_city, fpod_st_code, fpod_zip,
@@ -653,7 +663,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                         total_cbm = total_cbm
                     else:
                         total_cbm = 1
-                   
+                    
                     total_p2p = percbm_p2p * total_cbm
                     console = prow['P2P Type']
 
@@ -669,7 +679,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
 
                     try:
                         pod_doc = accessorials[(accessorials["Location Unloc"] == fpod_unloc) &
-                                               (accessorials["Charge Head"] == "Documentation")]["Amount"].values[0]
+                                                (accessorials["Charge Head"] == "Documentation")]["Amount"].values[0]
                         doc_pcbm = float(pod_doc)/float(total_cbm)
                     except IndexError:
                         errors.append(f"⚠️ Documentation charge missing for {fpod_unloc}")
@@ -678,7 +688,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
 
                     try:
                         occ = accessorials[(accessorials["Location Unloc"] == pol_unloc) &
-                                               (accessorials["Charge Head"] == "OCC")]["Amount"].values[0] if is_occ else 0
+                                                (accessorials["Charge Head"] == "OCC")]["Amount"].values[0] if is_occ else 0
                     except IndexError:
                         if is_occ:
                             errors.append(f"⚠️ OCC charge missing for {pol_unloc}")
@@ -686,7 +696,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
 
                     try:
                         dcc = accessorials[(accessorials["Location Unloc"] == fpod_unloc) &
-                                               (accessorials["Charge Head"] == "DCC")]["Amount"].values[0] if is_dcc else 0
+                                                (accessorials["Charge Head"] == "DCC")]["Amount"].values[0] if is_dcc else 0
                     except IndexError:
                         if is_dcc:
                             errors.append(f"⚠️ DCC charge missing for {fpod_unloc}")
@@ -694,7 +704,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
 
                     try:
                         pal_cost = palletization[(palletization["FPOD UNLOC"] == fpod_unloc) &
-                                               (palletization["Service Type"] == "Palletization cost Per Pallet")]["Amount"].values[0]
+                                                (palletization["Service Type"] == "Palletization cost Per Pallet")]["Amount"].values[0]
                         palletization_cost = float(pal_cost) * total_pallet_count
                     except IndexError:
                         errors.append(f"⚠️ Palletization Cost missing for {fpod_unloc}")
