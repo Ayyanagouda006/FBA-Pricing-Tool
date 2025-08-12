@@ -86,12 +86,9 @@ def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs):
         return None
 
 
-def weight_to_lbs(weight):
-    return float(weight) * 2.205
 
+def api(origin_zip, destination_zip, weight_lbs):
 
-def api(origin_zip, destination_zip, weight):
-    weight_lbs = weight_to_lbs(weight)
     df = get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs)
 
     if df is None or df.empty or "rates" not in df.columns:

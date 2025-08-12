@@ -296,7 +296,7 @@ def ftl_rate(fpod_zip, fba_zip, qty):
             "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
         })
 
-    ftl_jb = jbhunt_api(fpod_zip, fba_zip, "5000")
+    ftl_jb = jbhunt_api(fpod_zip, fba_zip, "11024")
     ftl_cand.append(ftl_jb)
 
     ftl53_cand = []
@@ -312,7 +312,7 @@ def ftl_rate(fpod_zip, fba_zip, qty):
             "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
         })
 
-    ftl53_jb = jbhunt_api(fpod_zip, fba_zip, "20411.657")
+    ftl53_jb = jbhunt_api(fpod_zip, fba_zip, "45000")
     ftl53_cand.append(ftl53_jb)
     # Safely return min if any rates were found, else None
     best_ftl = min(ftl_cand, key=lambda x: x["Rate"]) if ftl_cand else None
@@ -329,7 +329,7 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
 
     # Special case for HOT category
     if set(service_modes) == {"Drayage"}:
-        drayage = jbhunt_api(fpod_zip, fba_zip, "20411.657")
+        drayage = jbhunt_api(fpod_zip, fba_zip, "45000")
         drayage_lowest = {
             "Rate Type": "Drayage",
             "Rate": drayage.get("Rate"),
