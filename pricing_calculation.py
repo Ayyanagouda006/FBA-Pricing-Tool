@@ -535,7 +535,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
     pickup_charges = 0.0
     if shipment_scope == "Door-to-Door":
         if pickup_charges_inr in [0.0, "0.0", "", None]:
-            return {}, ["Pickup charges are required for Door-to-Door shipment scope."]
+            return {}, ["Pickup charges are required for Door-to-Door shipment scope."], []
         else:
             pickup_charges = float(pickup_charges_inr) / float(exchange_rate)
 
@@ -546,7 +546,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
         accessorials = pd.read_excel(r"Data/FBA Rates.xlsx", 'Accessorials')
         palletization = pd.read_excel(r"Data/FBA Rates.xlsx", 'Palletization')
     except Exception as e:
-        return {}, [f"❌ Failed to load one or more Excel sheets: {e}"]
+        return {}, [f"❌ Failed to load one or more Excel sheets: {e}"], []
 
     results = {}
     skipped_fba = []
