@@ -4,6 +4,7 @@ from data_fetch import fetch_quote_data
 from pricing_calculation import rates, summarization
 import pandas as pd
 import os
+import time
 
 LOG_FILE = r"Logs/success_rates.xlsx"
 
@@ -260,6 +261,7 @@ def fba_quote_app():
 
 
     if submit:
+        start_time = time.time()
         if not quote_id:
             st.warning("⚠️ Please enter a valid Ag Quote No. before requesting rates.")
         elif not st.session_state.form_data_loaded:
@@ -288,26 +290,35 @@ def fba_quote_app():
             is_dcc = st.session_state.get("fbaDCC", "").lower() == "yes"
             origin = st.session_state.get("origin", "")
 
-            st.success("✅ Getting rates based on provided inputs...")
-            cleaned_data = remove_ids(st.session_state.multidest)
 
-            # ✅ Updated call with error handling
-            console_type = "not selected"
-            service_modes = []
-            result, errors, skipped_fba = rates(
-                origin,
-                cleaned_data,
-                console_type,
-                is_occ,
-                is_dcc,
-                des_val,
-                shipment_scope,
-                pickup_charges_inr,
-                service_modes,
-                grand_total_weight,
-                grand_total_cbm
-            )
+            with st.spinner("✅ Getting rates based on provided inputs...",show_time = True):
+                
+                cleaned_data = remove_ids(st.session_state.multidest)
 
+                # ✅ Updated call with error handling
+                console_type = "not selected"
+                service_modes = []
+                result, errors, skipped_fba = rates(
+                    origin,
+                    cleaned_data,
+                    console_type,
+                    is_occ,
+                    is_dcc,
+                    des_val,
+                    shipment_scope,
+                    pickup_charges_inr,
+                    service_modes,
+                    grand_total_weight,
+                    grand_total_cbm
+                )
+
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+
+                minutes = int(elapsed_time // 60)
+                seconds = round(elapsed_time % 60, 2)
+
+                st.success(f"✅ Done! Execution completed in {minutes} minutes, {seconds} seconds.")
             # st.json(result)
 
             # ✅ Show errors if any
@@ -320,12 +331,13 @@ def fba_quote_app():
 
             if result and not errors:
                 try:
-                    st.success("✅ Rate calculation successful. Showing breakdown:")
-
+                    
                     quotations_backup(quote_id, result)  # 💾 Save backup
 
                     if len(skipped_fba) != 0:
                         st.warning(f"{', '.join(skipped_fba)} FBA locations are skipped")
+
+                    st.success("✅ Rate calculation successful. Showing breakdown:")
 
                     own_console_dict = {}
                     coload_dict = {}
