@@ -549,6 +549,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
         return {}, [f"❌ Failed to load one or more Excel sheets: {e}"]
 
     results = {}
+    skipped_fba = []
     errors = []
 
     for dest in cleaned_data:
@@ -584,6 +585,10 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
         total_pallet_count = pallets + loose_as_pallets
 
         fba_code = destination_name.split(" ")[0]
+        if fba_code in ['IUST', 'IUSL', 'PBI3', 'TMB8', 'SCK8' ]:
+            skipped_fba.append(fba_code)
+            continue
+
         sub_fba_locations = fba_locations[fba_locations['FBA Code'] == fba_code]
 
         if sub_fba_locations.empty:
@@ -611,7 +616,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
 
             if console_selected == "not selected" and console_selected != "both selected":
                 
-                if fpod_unloc in ['USNYC', 'USCHS']:
+                if fpod_unloc in ['USNYC', 'USCHS', 'USLAX', 'USJAX']:
                     console_type = 'Own Console'
                 else:
                     if 'Drayage' in services:
@@ -765,4 +770,4 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                 except Exception as e:
                     errors.append(f"❌ Error processing P2P row for {destination_name}: {e}")
 
-    return results, errors
+    return results, errors, skipped_fba

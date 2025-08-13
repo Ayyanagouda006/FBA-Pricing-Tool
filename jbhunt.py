@@ -116,7 +116,7 @@ def api(origin_zip, destination_zip, weight_lbs):
     log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Success", f"Rate: {rate}, Carrier: {carrier}")
 
     return {
-        "Rate": rate,
+        "Rate": float(rate) * 1.5,
         "Carrier Name": carrier,
         "Service Provider": "J.B. Hunt"
     }
@@ -144,7 +144,7 @@ def jbhunt_api(origin_zip, destination_zip, weight):
         if not valid_rows.empty:
             row = valid_rows.iloc[0]
             return {
-                "Rate": row["Rate"],
+                "Rate": float(row["Rate"]) * 1.5,
                 "Carrier Name": row["Carrier Name"],
                 "Service Provider": "J.B. Hunt"
             }

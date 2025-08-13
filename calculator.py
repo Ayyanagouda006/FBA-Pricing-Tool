@@ -294,7 +294,7 @@ def fba_quote_app():
             # ✅ Updated call with error handling
             console_type = "not selected"
             service_modes = []
-            result, errors = rates(
+            result, errors, skipped_fba = rates(
                 origin,
                 cleaned_data,
                 console_type,
@@ -323,6 +323,9 @@ def fba_quote_app():
                     st.success("✅ Rate calculation successful. Showing breakdown:")
 
                     quotations_backup(quote_id, result)  # 💾 Save backup
+
+                    if len(skipped_fba) != 0:
+                        st.warning(f"{', '.join(skipped_fba)} FBA locations are skipped")
 
                     own_console_dict = {}
                     coload_dict = {}
@@ -358,6 +361,8 @@ def fba_quote_app():
                 except Exception as e:
                     st.error(f"❌ An error occurred while displaying the breakdown.\n\nDetails: `{e}`")
             else:
+                if len(skipped_fba) != 0:
+                    st.warning(f"{', '.join(skipped_fba)} FBA locations are skipped")
                 st.warning("⚠️ No valid rate results to display.")
 
 
