@@ -816,3 +816,58 @@ Traceback (most recent call last):
   File "/home/ubuntu/.local/lib/python3.10/site-packages/pandas/compat/_optional.py", line 164, in import_optional_dependency
     raise ImportError(msg)
 ImportError: Pandas requires version '3.1.2' or newer of 'jinja2' (version '3.0.3' currently installed).
+
+Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
+
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8506
+  Network URL: http://172.31.40.84:8506
+  External URL: http://3.108.70.93:8506
+
+2025-08-13 02:59:37.373 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 17, in <module>
+    fba_quote_app()
+  File "/home/ubuntu/FBA-Pricing-Tool/calculator.py", line 297, in fba_quote_app
+    result, errors, skipped_fba = rates(
+ValueError: not enough values to unpack (expected 3, got 2)
+2025-08-13 03:01:51.676 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 17, in <module>
+    fba_quote_app()
+  File "/home/ubuntu/FBA-Pricing-Tool/calculator.py", line 297, in fba_quote_app
+    result, errors, skipped_fba = rates(
+ValueError: not enough values to unpack (expected 3, got 2)
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:490: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:490: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+2025-08-13 03:17:50.638 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 17, in <module>
+    fba_quote_app()
+  File "/home/ubuntu/FBA-Pricing-Tool/calculator.py", line 297, in fba_quote_app
+    result, errors, skipped_fba = rates(
+ValueError: not enough values to unpack (expected 3, got 2)
