@@ -185,7 +185,20 @@ def heyprimo_api(row: dict):
         
         if not valid_rows.empty:
             rows = valid_rows.iloc[0]
-            log_heyprimo_result(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, "Success", f"Rate: {rows["Rate"]}, Carrier: {rows['Carrier Name']}",quote_id,"API")
+            log_heyprimo_result(
+                fpod_city,
+                fpod_st_code,
+                fpod_zip,
+                fba_city,
+                fba_st_code,
+                fba_zip,
+                qty,
+                "Success",
+                f'Rate: {rows["Rate"]}, Carrier: {rows["Carrier Name"]}',
+                quote_id,
+                "API"
+            )
+
             return {
                 "Lowest Rate": rows["Rate"],
                 "Carrier Name": rows["Carrier Name"]
