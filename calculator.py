@@ -28,7 +28,7 @@ def remove_ids(data):
     else:
         return data
     
-def log_rate_request(quote_id, console_type, service_modes, result, errors):
+def log_rate_request(quote_id, console_type, service_modes, result, errors,time_taken):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     status = "Error" if not result else "Success"
     error_messages = "; ".join(errors) if errors else ""
@@ -42,7 +42,8 @@ def log_rate_request(quote_id, console_type, service_modes, result, errors):
         "OverRide ServiceModes": service,
         "Status": status,
         "Error Messages": error_messages,
-        "Total Destinations": total_destinations
+        "Total Destinations": total_destinations,
+        "Execution Time":time_taken
     }
 
     # Load or initialize log DataFrame
@@ -309,7 +310,8 @@ def fba_quote_app():
                     pickup_charges_inr,
                     service_modes,
                     grand_total_weight,
-                    grand_total_cbm
+                    grand_total_cbm,
+                    quote_id
                 )
 
                 end_time = time.time()
@@ -327,7 +329,7 @@ def fba_quote_app():
                 for msg in errors:
                     st.markdown(f"- {msg}")
 
-            log_rate_request(quote_id, console_type, service_modes, result, errors)
+            log_rate_request(quote_id, console_type, service_modes, result, errors,f"{minutes} minutes, {seconds} seconds")
 
             if result and not errors:
                 try:
@@ -349,10 +351,11 @@ def fba_quote_app():
                             coload_dict[location] = {"Coload": consoles["Coload"]}
 
                     # Function to display grouped bookings
-                    def display_grouped_results(grouped_data, title_icon, title_text):
+
+                    def display_grouped_results(grouped_data, title_icon, title_text, booking_num):
                         if grouped_data:
                             st.markdown(f"### {title_icon} {title_text}")
-                            grouped_results = summarization(grouped_data)  # returns dict of {'Booking x': [df1, df2]}
+                            grouped_results, booking_counter = summarization(grouped_data, quote_id, booking_num)
 
                             for booking_name, (df_summary, df_details) in grouped_results.items():
                                 st.markdown(f"### {booking_name}")
@@ -364,11 +367,14 @@ def fba_quote_app():
                                 with st.container(border=True):
                                     st.data_editor(df_details, use_container_width=True, disabled=True)
 
-                    # Display Own Console Results
-                    display_grouped_results(own_console_dict, "🚛", "Own Console Breakdown")
+                            return booking_counter
+                        return booking_num  # unchanged if no data
 
-                    # Display Coload Results
-                    display_grouped_results(coload_dict, "🚚", "Coload Breakdown")
+
+                    booking_num = 1
+                    booking_num = display_grouped_results(own_console_dict, "🚛", "Own Console Breakdown", booking_num)
+                    booking_num = display_grouped_results(coload_dict, "🚚", "Coload Breakdown", booking_num)
+
 
                 except Exception as e:
                     st.error(f"❌ An error occurred while displaying the breakdown.\n\nDetails: `{e}`")

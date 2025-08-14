@@ -9,51 +9,65 @@ from datetime import datetime
 
 exchange_rate=88
 
+
 def log_booking(booking_id, quotation_no, output1, output2, log_file):
-    # Prefix column names
+
+    # --- Add metadata ---
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     summary_df = output1.copy()
-    summary_df.columns = [f"Summary.{col}" for col in summary_df.columns]
-
     breakdown_df = output2.copy()
-    breakdown_df.columns = [f"Breakdown.{col}" for col in breakdown_df.columns]
 
-    # Reset indexes to align
-    summary_df = summary_df.reset_index(drop=True)
-    breakdown_df = breakdown_df.reset_index(drop=True)
+    for df in [summary_df, breakdown_df]:
+        df["Booking ID"] = booking_id
+        df["Quotation Number"] = quotation_no
+        df["Log Timestamp"] = timestamp
 
-    # Pad shorter DataFrame so both match in length
-    max_len = max(len(summary_df), len(breakdown_df))
-    summary_df = summary_df.reindex(range(max_len))
-    breakdown_df = breakdown_df.reindex(range(max_len))
+    # --- Load existing log ---
+    if os.path.exists(log_file):
+        try:
+            existing_summary = pd.read_excel(log_file, sheet_name="Summary")
+        except Exception:
+            existing_summary = pd.DataFrame()
 
-    # Merge both parts
-    combined_df = pd.concat([summary_df, breakdown_df], axis=1)
+        try:
+            existing_breakdown = pd.read_excel(log_file, sheet_name="Breakdown")
+        except Exception:
+            existing_breakdown = pd.DataFrame()
 
-    # Add log metadata
-    combined_df["Booking ID"] = booking_id
-    combined_df["Quotation Number"] = quotation_no
-    combined_df["Log Timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 🔹 Remove any rows matching same Quotation + Booking
+        existing_summary = existing_summary[
+            ~((existing_summary["Quotation Number"] == quotation_no) &
+              (existing_summary["Booking ID"] == booking_id))
+        ]
+        existing_breakdown = existing_breakdown[
+            ~((existing_breakdown["Quotation Number"] == quotation_no) &
+              (existing_breakdown["Booking ID"] == booking_id))
+        ]
 
-    # Ensure log directory exists
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+        # Append fresh data
+        updated_summary = pd.concat([existing_summary, summary_df], ignore_index=True)
+        updated_breakdown = pd.concat([existing_breakdown, breakdown_df], ignore_index=True)
 
-    # Append or create log file
-    if not os.path.exists(log_file):
-        combined_df.to_excel(log_file, index=False)
     else:
-        existing_logs = pd.read_excel(log_file)
-        updated_logs = pd.concat([existing_logs, combined_df], ignore_index=True)
-        updated_logs.to_excel(log_file, index=False)
+        # Start fresh log
+        updated_summary = summary_df
+        updated_breakdown = breakdown_df
+
+    # --- Save both sheets ---
+    with pd.ExcelWriter(log_file, engine="openpyxl") as writer:
+        updated_summary.to_excel(writer, sheet_name="Summary", index=False)
+        updated_breakdown.to_excel(writer, sheet_name="Breakdown", index=False)
+
+    print(f"✅ Booking {booking_id} for quotation {quotation_no} logged successfully.")
 
 
 
-def summarization(data):
+def summarization(data, quote_id, booking_counter):
     # Step 1: Flatten nested dict into rows
     rows = []
     for dest, modes in data.items():
         for mode, details in modes.items():
             rows.append({
-                "Agquote ID":details.get("Agquote ID", ""),
                 "Origin Address": details.get("Origin", ""),
                 "POL": details.get("POL", ""),
                 "P2P Type": mode,
@@ -76,14 +90,13 @@ def summarization(data):
                 "DCC": details.get("DCC", 0.0),
                 "P2P": details.get("PER CBM P2P", 0.0),
                 "Documentation": details.get("Documentation", 0.0),
-                "Palletization (Per Pallet)": details.get("Palletization (Per Pallet)", 0.0),
+                "Palletization Cost": details.get("Palletization Cost", 0.0),
                 "Quotation Total CBM" : details.get("Quotation Total CBM",0.0)
             })
 
     df_all = pd.DataFrame(rows)
 
     results = {}
-    booking_counter = 1
     # Create logs folder if it doesn't exist
     os.makedirs("Logs", exist_ok=True)
     log_file = "Logs/bookings_log.xlsx"
@@ -92,7 +105,6 @@ def summarization(data):
     for (fpod, category), df_group in df_all.groupby(["FPOD", "Category"]):
         orows = []
 
-        quote_id = df_group["Agquote ID"].values[0]
         first_mile = df_group["1st Mile"].astype(float).max()
         quote_tot_cbm = df_group["Quotation Total CBM"].astype(float).max()
         first_mile_pcbm = float(first_mile) / float(quote_tot_cbm)
@@ -101,7 +113,7 @@ def summarization(data):
         tot_cbm = df_group["CBM"].sum()
         tot_first_mile = float(first_mile_pcbm) * float(tot_cbm)
         pallets = df_group["#Pallets"].sum()
-        pal_pp = df_group["Palletization (Per Pallet)"].astype(float).max()
+        pal_pp = df_group["Palletization Cost"].astype(float).max()
         lm_delivery_type = list(df_group["LM Delivery Type"].unique())
 
         # Step 3: P2P per FPOD (inside group)
@@ -176,16 +188,15 @@ def summarization(data):
             })
 
         if "Drayage" not in lm_delivery_type:
-            cal_pal_pp = pallets * pal_pp
-            pal_pcbm = float(cal_pal_pp)/ float(tot_cbm)
+            pal_pcbm = float(pal_pp)/ float(tot_cbm)
             orows.append({
                 "Charge Heads": "Palletization",
                 "Basis": "Per Pallet",
                 "Basis QTY": pallets,
-                "Charge In $": cal_pal_pp,
+                "Charge In $": pal_pp,
                 "Exchange Rate (USD to INR)": exchange_rate,
                 "Per CBM In $": pal_pcbm,
-                "Charge in INR": cal_pal_pp * exchange_rate,
+                "Charge in INR": pal_pp * exchange_rate,
                 "Per CBM in INR": float(pal_pcbm) * exchange_rate
             })
 
@@ -273,11 +284,11 @@ def summarization(data):
         results[f"Booking {booking_counter}"] = [output1, output2]
         booking_counter += 1
 
-    return results
+    return results, booking_counter
 
 
 
-def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, weight):
+def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, weight,quote_id):
     # Read offline last mile rates
     lm = pd.read_excel(r"Data/Last Mile Rates (no api).xlsx", "Last Mile Rates (no api)")
     lm = lm[lm['Delivery Type'] == "LTL"]
@@ -290,10 +301,11 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, 
         "Destn City": fba_city,
         "Destn State Code": fba_st_code,
         "FBA or Destination ZIP": fba_zip,
-        "Num Of Pallet": qty
+        "Num Of Pallet": qty,
+        "quote_id":quote_id
     })
 
-    ef_result = exfreight_api(fpod_zip, fba_zip, weight, qty)
+    ef_result = exfreight_api(fpod_zip, fba_zip, weight, qty, quote_id)
 
     # Step 2: Parse rates from API safely
     candidates = []
@@ -335,7 +347,7 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, 
     else:
         return None
     
-def ftl_rate(fpod_zip, fba_zip, qty):
+def ftl_rate(fpod_zip, fba_zip, qty, quote_id):
     lm = pd.read_excel(r"Data/Last Mile Rates (no api).xlsx", "Last Mile Rates (no api)")
     
     # Separate FTL and FTL53 sheets
@@ -355,7 +367,7 @@ def ftl_rate(fpod_zip, fba_zip, qty):
             "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
         })
 
-    ftl_jb = jbhunt_api(fpod_zip, fba_zip, "11024")
+    ftl_jb = jbhunt_api(fpod_zip, fba_zip, "11024", quote_id)
     ftl_cand.append(ftl_jb)
 
     ftl53_cand = []
@@ -371,7 +383,7 @@ def ftl_rate(fpod_zip, fba_zip, qty):
             "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
         })
 
-    ftl53_jb = jbhunt_api(fpod_zip, fba_zip, "45000")
+    ftl53_jb = jbhunt_api(fpod_zip, fba_zip, "45000", quote_id)
     ftl53_cand.append(ftl53_jb)
     # Safely return min if any rates were found, else None
     best_ftl = min(ftl_cand, key=lambda x: x["Rate"]) if ftl_cand else None
@@ -380,7 +392,7 @@ def ftl_rate(fpod_zip, fba_zip, qty):
     return best_ftl, best_ftl53
 
 def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip,
-                     total_pallet_count, weight, category, service_modes):
+                     total_pallet_count, weight, category, service_modes, quote_id):
     drayage = None
     ltl = None
     ftl = None
@@ -388,7 +400,7 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
 
     # Special case for HOT category
     if set(service_modes) == {"Drayage"}:
-        drayage = jbhunt_api(fpod_zip, fba_zip, "45000")
+        drayage = jbhunt_api(fpod_zip, fba_zip, "45000", quote_id)
         drayage_lowest = {
             "Rate Type": "Drayage",
             "Rate": drayage.get("Rate"),
@@ -399,7 +411,7 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
 
     # --- CASE 1: ["FTL", "FTL53"] ---
     if set(service_modes) == {"FTL", "FTL53"}:
-        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
+        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count, quote_id)
 
         # Safe rate division if dict and valid
         if isinstance(ftl_result, dict) and isinstance(ftl_result.get("Rate"), (int, float)) and ftl_result["Rate"] > 0:
@@ -425,7 +437,7 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
 
     # --- CASE 2: ["FTL53"] ---
     if set(service_modes) == {"FTL53"}:
-        _, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
+        _, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count,quote_id)
         if isinstance(ftl53_result, dict) and isinstance(ftl53_result.get("Rate"), (int, float)) and ftl53_result["Rate"] > 0:
             ftl53_result["Rate"] /= 48
 
@@ -441,10 +453,10 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
     # --- CASE 3: Other combinations (with LTL or more) ---
     if "LTL" in service_modes:
         ltl = ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip,
-                       total_pallet_count, weight)
+                       total_pallet_count, weight, quote_id)
 
     if "FTL" in service_modes or "FTL53" in service_modes:
-        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count)
+        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count, quote_id)
         if "FTL" in service_modes:
             ftl = ftl_result
         if "FTL53" in service_modes:
@@ -530,7 +542,7 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
 
 
 def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipment_scope, pickup_charges_inr, 
-          selected_service, grand_total_weight, grand_total_cbm):
+          selected_service, grand_total_weight, grand_total_cbm, quote_id):
     
     pickup_charges = 0.0
     if shipment_scope == "Door-to-Door":
@@ -630,7 +642,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                 ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
                     fpod_city, fpod_st_code, fpod_zip,
                     fba_city, fba_st_code, fba_zip,
-                    total_pallet_count, weight, category, services
+                    total_pallet_count, weight, category, services, quote_id
                 )
             except Exception as e:
                 errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
@@ -710,7 +722,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                     try:
                         pal_cost = palletization[(palletization["FPOD UNLOC"] == fpod_unloc) &
                                                 (palletization["Service Type"] == "Palletization cost Per Pallet")]["Amount"].values[0]
-                        palletization_cost = float(pal_cost) * total_pallet_count
+                        palletization_cost = float(pal_cost) * loose_as_pallets
                     except IndexError:
                         errors.append(f"⚠️ Palletization Cost missing for {fpod_unloc}")
                         pal_cost = 0.0

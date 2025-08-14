@@ -5,15 +5,17 @@ import os
 
 LOG_FILE = r"Logs/jbhunt_api_tracking.xlsx"
 
-def log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, status, message):
+def log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, status, message, quote_id, source):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = {
+        "Quotation Number": quote_id,
         "Timestamp": timestamp,
         "Origin ZIP": str(origin_zip),
         "Destination ZIP": str(destination_zip),
         "Weight (lbs)": weight_lbs,
         "Status": status,  # "Success" or "Failed"
-        "Message": message
+        "Message": message,
+        "Source": source
     }
 
     if os.path.exists(LOG_FILE):
@@ -87,12 +89,12 @@ def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs):
 
 
 
-def api(origin_zip, destination_zip, weight_lbs):
+def api(origin_zip, destination_zip, weight_lbs, quote_id):
 
     df = get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs)
 
     if df is None or df.empty or "rates" not in df.columns:
-        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "No valid rates returned")
+        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "No valid rates returned", quote_id, "")
         return {
             "Rate": 0,
             "Carrier Name": "Jb Hunt API Failed :No valid rates returned",
@@ -102,7 +104,7 @@ def api(origin_zip, destination_zip, weight_lbs):
     rates_list = df["rates"].iloc[0] if not df["rates"].isna().iloc[0] else []
 
     if not rates_list:
-        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "Empty rates list")
+        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "Empty rates list", quote_id, "")
         return {
             "Rate": 0,
             "Carrier Name": "Jb Hunt API Failed :Empty rates list",
@@ -113,7 +115,7 @@ def api(origin_zip, destination_zip, weight_lbs):
     rate = lowest_quote.get("totalCharge", {}).get("value")
     carrier = lowest_quote.get("scacCode", "Unknown")
 
-    log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Success", f"Rate: {rate}, Carrier: {carrier}")
+    log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Success", f"Rate: {float(rate) * 1.5}, Carrier: {carrier}", quote_id, "API")
 
     return {
         "Rate": float(rate) * 1.5,
@@ -121,7 +123,7 @@ def api(origin_zip, destination_zip, weight_lbs):
         "Service Provider": "J.B. Hunt"
     }
 
-def jbhunt_api(origin_zip, destination_zip, weight):
+def jbhunt_api(origin_zip, destination_zip, weight, quote_id):
     df = pd.read_excel(r"Data/API Data/jbhunt_output.xlsx")
 
     origin_zip = str(origin_zip).zfill(5)
@@ -143,6 +145,7 @@ def jbhunt_api(origin_zip, destination_zip, weight):
 
         if not valid_rows.empty:
             row = valid_rows.iloc[0]
+            log_jbhunt_quote(origin_zip, destination_zip, weight, "Success", f"Rate: {float(row["Rate"]) * 1.5}, Carrier: {row["Carrier Name"]}", quote_id, "STATIC DATA")
             return {
                 "Rate": float(row["Rate"]) * 1.5,
                 "Carrier Name": row["Carrier Name"],
@@ -150,4 +153,4 @@ def jbhunt_api(origin_zip, destination_zip, weight):
             }
 
     # Fallback to API
-    return api(origin_zip, destination_zip, weight)
+    return api(origin_zip, destination_zip, weight, quote_id)

@@ -19,9 +19,10 @@ def log_to_excel(log_data):
     final_df.to_excel(LOG_FILE, index=False)
 
 
-def api(origin, destination, weight, qty):
+def api(origin, destination, weight, qty,quote_id):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_data = {
+        "Quotation Number":quote_id,
         "Timestamp": timestamp,
         "Origin": origin,
         "Destination": destination,
@@ -76,6 +77,7 @@ def api(origin, destination, weight, qty):
         if not response.ok:
             log_data["Status"] = "Error"
             log_data["Message"] = f"{response.status_code} - {response.text}"
+            log_data['Source'] = ""
             log_to_excel(log_data)
             return {"error": f"API error: {response.status_code}", "message": response.text}
 
@@ -84,6 +86,7 @@ def api(origin, destination, weight, qty):
         if "routes" not in data or not data["routes"]:
             log_data["Status"] = "Error"
             log_data["Message"] = "No routes returned by API"
+            log_data['Source'] = ""
             log_to_excel(log_data)
             return {"error": "No routes returned by API", "raw_response": data}
 
@@ -111,6 +114,7 @@ def api(origin, destination, weight, qty):
         if not rows:
             log_data["Status"] = "Error"
             log_data["Message"] = "No valid rate rows parsed"
+            log_data['Source'] = ""
             log_to_excel(log_data)
             return {"error": "No valid rate rows parsed", "raw_response": data}
 
@@ -121,6 +125,7 @@ def api(origin, destination, weight, qty):
         log_data["Carrier Name"] = best_rate["Carrier Name"]
         log_data["Rate (USD)"] = best_rate["Total Charge (USD)"]
         log_data["Message"] = "Success"
+        log_data['Source'] = "API"
         log_to_excel(log_data)
 
         return {
@@ -131,10 +136,11 @@ def api(origin, destination, weight, qty):
     except Exception as e:
         log_data["Status"] = "Error"
         log_data["Message"] = str(e)
+        log_data['Source'] = ""
         log_to_excel(log_data)
         return {"error": "Exception occurred", "message": str(e)}
     
-def exfreight_api(origin, destination, weight, qty):
+def exfreight_api(origin, destination, weight, qty, quote_id):
     df = pd.read_excel(r"Data/API Data/exfreight_output.xlsx")
     origin = str(origin).zfill(5)
     destination = str(destination).zfill(5)
@@ -157,11 +163,31 @@ def exfreight_api(origin, destination, weight, qty):
 
         if not valid_rows.empty:
             row = valid_rows.iloc[0]
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_data = {
+                "Quotation Number":quote_id,
+                "Timestamp": timestamp,
+                "Origin": origin,
+                "Destination": destination,
+                "Weight (kg)": ceil(weight),
+                "Quantity": qty,
+                "Status": "",
+                "Message": "",
+                "Carrier Name": "",
+                "Rate (USD)": ""
+            }
+
+            log_data["Status"] = "Success"
+            log_data["Carrier Name"] = row["Carrier Name"]
+            log_data["Rate (USD)"] = row["Rate"]
+            log_data["Message"] = "Success"
+            log_data['Source'] = "API"
+            log_to_excel(log_data)
             return {
                 "Lowest Rate": row["Rate"],
                 "Carrier Name": row["Carrier Name"]
             }
 
     # Fallback to API
-    return api(origin, destination, weight, qty)
+    return api(origin, destination, weight, qty, quote_id)
 

@@ -7,9 +7,10 @@ import os
 LOG_FILE = r"Logs/heyprimo_api_tracking.xlsx"
 
 # ----------------- Logging Function -----------------
-def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, status, message):
+def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, status, message,quote_id,source):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = {
+        "Quotation Number":quote_id,
         "Timestamp": timestamp,
         "Origin City": ori_city,
         "Origin State Code": ori_state,
@@ -19,7 +20,8 @@ def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, des
         "Destination ZIP": dest_zip,
         "Pallet Count": qty,
         "Status": status,
-        "Message": message
+        "Message": message,
+        "Source":source
     }
 
     if os.path.exists(LOG_FILE):
@@ -67,6 +69,7 @@ def api(row: dict):
         dest_state = row['Destn State Code'].strip().upper()
         dest_zip = str(row['FBA or Destination ZIP']).zfill(5)
         qty = int(row['Num Of Pallet'])
+        quote_id = row["quote_id"]
 
         query_params = {
             "destinationCity": dest_city,
@@ -101,12 +104,12 @@ def api(row: dict):
         api_response = fetch_shipping_rates(token, query_params)
 
         if not api_response or "data" not in api_response or "results" not in api_response["data"]:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No response or missing data/results")
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No response or missing data/results",quote_id,"")
             return None
 
         rates = api_response["data"]["results"]["rates"]
         if not rates:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "Empty rates list")
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "Empty rates list",quote_id,"")
             return None
 
         data_list = []
@@ -129,7 +132,7 @@ def api(row: dict):
         filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
 
         if filtered_df.empty:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No rates matched preferred SCAC list")
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No rates matched preferred SCAC list",quote_id,"")
             return None
 
         best_rate = filtered_df.nsmallest(1, 'Total Cost').iloc[0]
@@ -138,13 +141,13 @@ def api(row: dict):
             "Carrier Name": best_rate["Carrier"]
         }
 
-        log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Success", f"Rate: {result['Lowest Rate']}, Carrier: {result['Carrier Name']}")
+        log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Success", f"Rate: {result['Lowest Rate']}, Carrier: {result['Carrier Name']}",quote_id,"API")
         return result
 
     except Exception as e:
         log_heyprimo_result(row.get('Origin City', ''), row.get('Origin State Code', ''), row.get("Origin ZIP", ""), 
                             row.get('Destn City',''), row.get('Destn State Code', ''), row.get("FBA or Destination ZIP", ""), 
-                            row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}")
+                            row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}",quote_id,"")
         return None
 
 def heyprimo_api(row: dict):
@@ -156,6 +159,7 @@ def heyprimo_api(row: dict):
     fba_st_code = row["Destn State Code"]
     fba_zip = row["FBA or Destination ZIP"]
     qty = row["Num Of Pallet"]
+    quote_id = row["quote_id"]
 
     fpod_zip = str(fpod_zip).zfill(5)
     fba_zip = str(fba_zip).zfill(5)
@@ -178,12 +182,13 @@ def heyprimo_api(row: dict):
             match['Rate'].notna() & (match['Rate'] != '') &
             match['Carrier Name'].notna() & (match['Carrier Name'] != '')
         ]
-
+        
         if not valid_rows.empty:
-            row = valid_rows.iloc[0]
+            rows = valid_rows.iloc[0]
+            log_heyprimo_result(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, "Success", f"Rate: {rows["Rate"]}, Carrier: {rows['Carrier Name']}",quote_id,"API")
             return {
-                "Lowest Rate": row["Rate"],
-                "Carrier Name": row["Carrier Name"]
+                "Lowest Rate": rows["Rate"],
+                "Carrier Name": rows["Carrier Name"]
             }
         
     # Fallback to API
