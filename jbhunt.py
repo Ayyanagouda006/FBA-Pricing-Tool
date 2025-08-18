@@ -27,7 +27,7 @@ def log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, status, message, q
     df.to_excel(LOG_FILE, index=False)
 
 
-def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs):
+def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs,quote_id):
     try:
         # === Step 1: Get Access Token ===
         auth_url = "https://sso.jbhunt.com/auth/realms/security360/protocol/openid-connect/token"
@@ -84,14 +84,14 @@ def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs):
         return df
 
     except Exception as e:
-        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", str(e))
+        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", str(e), quote_id, "")
         return None
 
 
 
 def api(origin_zip, destination_zip, weight_lbs, quote_id):
 
-    df = get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs)
+    df = get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs, quote_id)
 
     if df is None or df.empty or "rates" not in df.columns:
         log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "No valid rates returned", quote_id, "")

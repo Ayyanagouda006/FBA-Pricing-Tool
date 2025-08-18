@@ -578,8 +578,17 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
             try:
                 package = item.get("packageType", "")
                 item_qty = int(item.get("numPackages", 0))
-                item_weight = float(item.get("totalWeight", 0.0))
-                item_cbm = float(item.get("totalVolume", 0.0))
+                item_wtppack = float(item.get("wtPerPackage", 0.0))
+                item_volppack = float(item.get("volPerPackage", 0.0))
+                try:
+                    item_weight = float(item.get("totalWeight", 0.0))
+                except (TypeError, ValueError):
+                    item_weight = item_qty * item_wtppack
+
+                try:
+                    item_cbm = float(item.get("totalVolume", 0.0))
+                except (TypeError, ValueError):
+                    item_cbm = item_qty * item_volppack
 
                 qty += item_qty
                 weight += item_weight
