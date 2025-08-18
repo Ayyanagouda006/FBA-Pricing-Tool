@@ -212,8 +212,12 @@ def summarization(data, quote_id, booking_counter):
                     charge_lm = charge_lm
                     lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                 else:
-                    charge_lm = 120.0
-                    lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                    if charge_lm != 0:
+                        charge_lm = 120.0
+                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                    else:
+                        charge_lm = 0.0
+                        lm_rate_pcbm = 0.0
             else:
                 if set(service_modes) == {"FTL", "FTL53"}:
                     charge_lm = float(lm_rate) * float(lm_cbm)
@@ -221,8 +225,12 @@ def summarization(data, quote_id, booking_counter):
                         charge_lm = charge_lm
                         lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                     else:
-                        charge_lm = 120.0
-                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                        if charge_lm != 0:
+                            charge_lm = 120.0
+                            lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                        else:
+                            charge_lm = 0.0
+                            lm_rate_pcbm = 0.0
                 elif set(service_modes) == {"FTL53"}:
                     
                     charge_lm = float(lm_rate) * float(lm_cbm)
@@ -230,8 +238,12 @@ def summarization(data, quote_id, booking_counter):
                         charge_lm = charge_lm
                         lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                     else:
-                        charge_lm = 120.0
-                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                        if charge_lm != 0:
+                            charge_lm = 120.0
+                            lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                        else:
+                            charge_lm = 0.0
+                            lm_rate_pcbm = 0.0
                 else:
                     
                     charge_lm = lm_rate
@@ -239,8 +251,12 @@ def summarization(data, quote_id, booking_counter):
                         charge_lm = charge_lm
                         lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
                     else:
-                        charge_lm = 120.0
-                        lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                        if charge_lm != 0:
+                            charge_lm = 120.0
+                            lm_rate_pcbm = float(charge_lm) / float(lm_cbm)
+                        else:
+                            charge_lm = 0.0
+                            lm_rate_pcbm = 0.0
 
             orows.append({
                 "Charge Heads": f"Last Mile({fba_code})",
@@ -281,6 +297,7 @@ def summarization(data, quote_id, booking_counter):
         log_booking(f"Booking {booking_counter}", quote_id, output1, output2, log_file)
 
         # -----------------------
+
         results[f"Booking {booking_counter}"] = [output1, output2]
         booking_counter += 1
 
