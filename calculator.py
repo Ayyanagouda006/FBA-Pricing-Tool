@@ -194,6 +194,9 @@ def fba_quote_app():
                 quantity_val = safe_int(cargo.get("numPackages", 0))
                 pkg_type = cargo.get("packageType", "")
 
+                if volPerPackage == 0.0:
+                    volPerPackage = (length_val*width_val*height_val)/1000000
+
                 total_weight = weight_val * quantity_val
                 total_volume = volPerPackage * quantity_val
 

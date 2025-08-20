@@ -597,6 +597,9 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                 item_qty = int(item.get("numPackages", 0))
                 item_wtppack = float(item.get("wtPerPackage", 0.0))
                 item_volppack = float(item.get("volPerPackage", 0.0))
+                length = float(item.get("length", 0.0))
+                width = float(item.get("width", 0.0))
+                height = float(item.get("height", 0.0))
                 try:
                     item_weight = float(item.get("totalWeight", 0.0))
                 except (TypeError, ValueError):
@@ -605,7 +608,12 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                 try:
                     item_cbm = float(item.get("totalVolume", 0.0))
                 except (TypeError, ValueError):
-                    item_cbm = item_qty * item_volppack
+                    if item_volppack == 0.0:
+                        vol = (length*width*height)/1000000
+                        item_cbm = item_qty * vol
+                    else:
+                        item_cbm = item_qty * item_volppack
+                    
 
                 qty += item_qty
                 weight += item_weight
