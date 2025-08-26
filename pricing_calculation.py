@@ -606,7 +606,12 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                     item_weight = item_qty * item_wtppack
 
                 try:
-                    item_cbm = float(item.get("totalVolume", 0.0))
+                    item_tot = float(item.get("totalVolume", 0.0))
+                    if item_tot == 0.0:
+                        vol = (length*width*height)/1000000
+                        item_cbm = item_qty * vol
+                    else:
+                        item_cbm = item_tot
                 except (TypeError, ValueError):
                     if item_volppack == 0.0:
                         vol = (length*width*height)/1000000
@@ -614,7 +619,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                     else:
                         item_cbm = item_qty * item_volppack
                     
-
+                # print(package,item_cbm)
                 qty += item_qty
                 weight += item_weight
                 total_cbm += item_cbm
@@ -710,6 +715,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                     else:
                         percbm_p2p = prow['Per CBM(USD)']
 
+                    # print(total_cbm)
                     if total_cbm >= 1:
                         total_cbm = total_cbm
                     else:
