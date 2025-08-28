@@ -80,9 +80,6 @@ def quotations_backup(quote_id, result):
         try:
             df_existing = pd.read_excel(file_path)
 
-            # Drop existing rows with the same quote_id
-            df_existing = df_existing[df_existing['Agquote ID'] != quote_id]
-
             # Append new rows to remaining data
             df_combined = pd.concat([df_existing, df_new], ignore_index=True)
         except Exception as e:
@@ -302,6 +299,8 @@ def fba_quote_app():
                 # ✅ Updated call with error handling
                 console_type = "not selected"
                 service_modes = []
+                dt_str = datetime.now().strftime("%Y%m%d%H%M%S")
+                unique_id = f"{quote_id}_{dt_str}"
                 result, errors, skipped_fba = rates(
                     origin,
                     cleaned_data,
@@ -314,7 +313,8 @@ def fba_quote_app():
                     service_modes,
                     grand_total_weight,
                     grand_total_cbm,
-                    quote_id
+                    quote_id,
+                    unique_id
                 )
 
                 end_time = time.time()

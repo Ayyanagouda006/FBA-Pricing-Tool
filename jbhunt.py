@@ -5,17 +5,21 @@ import os
 
 LOG_FILE = r"Logs/jbhunt_api_tracking.xlsx"
 
-def log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, status, message, quote_id, source):
+def log_jbhunt_quote(origin_zip, fba_code, destination_zip, weight_lbs, status, message, quote_id, source, date,unique_id,rate_type):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = {
         "Quotation Number": quote_id,
+        'Unique ID':unique_id,
         "Timestamp": timestamp,
         "Origin ZIP": str(origin_zip),
+        "FBA Code":fba_code,
         "Destination ZIP": str(destination_zip),
         "Weight (lbs)": weight_lbs,
+        "Rate Type": rate_type,
         "Status": status,  # "Success" or "Failed"
         "Message": message,
-        "Source": source
+        "Source": source,
+        'Date':date
     }
 
     if os.path.exists(LOG_FILE):
@@ -27,7 +31,7 @@ def log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, status, message, q
     df.to_excel(LOG_FILE, index=False)
 
 
-def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs,quote_id):
+def get_jbhunt_quote_df(origin_zip, fba_code, destination_zip, weight_lbs,quote_id,today,unique_id,rate_type):
     try:
         # === Step 1: Get Access Token ===
         auth_url = "https://sso.jbhunt.com/auth/realms/security360/protocol/openid-connect/token"
@@ -84,46 +88,55 @@ def get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs,quote_id):
         return df
 
     except Exception as e:
-        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", str(e), quote_id, "")
+        log_jbhunt_quote(origin_zip, fba_code, destination_zip, weight_lbs, "Failed", str(e), quote_id, "",today,unique_id,rate_type)
         return None
 
 
 
-def api(origin_zip, destination_zip, weight_lbs, quote_id):
-
-    df = get_jbhunt_quote_df(origin_zip, destination_zip, weight_lbs, quote_id)
+def api(origin_zip, fba_code, destination_zip, weight_lbs, quote_id,unique_id,rate_type):
+    today = datetime.today().date().strftime("%d-%m-%Y")
+    df = get_jbhunt_quote_df(origin_zip, fba_code, destination_zip, weight_lbs, quote_id,today,unique_id,rate_type)
 
     if df is None or df.empty or "rates" not in df.columns:
-        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "No valid rates returned", quote_id, "")
+        log_jbhunt_quote(origin_zip, fba_code, destination_zip, weight_lbs, "Failed", "No valid rates returned", quote_id, "",today,unique_id,rate_type)
         return {
+            "Rate Type": rate_type,
             "Rate": 0,
             "Carrier Name": "Jb Hunt API Failed :No valid rates returned",
-            "Service Provider": "J.B. Hunt"
+            "Service Provider": "J.B. Hunt",
+            "Source":"API",
+            "Date":today
         }
 
     rates_list = df["rates"].iloc[0] if not df["rates"].isna().iloc[0] else []
 
     if not rates_list:
-        log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Failed", "Empty rates list", quote_id, "")
+        log_jbhunt_quote(origin_zip, fba_code, destination_zip, weight_lbs, "Failed", "Empty rates list", quote_id, "",today,unique_id,rate_type)
         return {
+            "Rate Type": rate_type,
             "Rate": 0,
-            "Carrier Name": "Jb Hunt API Failed :Empty rates list",
-            "Service Provider": "J.B. Hunt"
+            "Carrier Name": "Jb Hunt API Failed :No valid rates returned",
+            "Service Provider": "J.B. Hunt",
+            "Source":"API",
+            "Date":today
         }
 
     lowest_quote = min(rates_list, key=lambda x: x.get("totalCharge", {}).get("value", float("inf")))
     rate = lowest_quote.get("totalCharge", {}).get("value")
     carrier = lowest_quote.get("scacCode", "Unknown")
 
-    log_jbhunt_quote(origin_zip, destination_zip, weight_lbs, "Success", f"Rate: {float(rate) * 1.5}, Carrier: {carrier}", quote_id, "API")
+    log_jbhunt_quote(origin_zip, fba_code, destination_zip, weight_lbs, "Success", f"Rate: {float(rate) * 1.5}, Carrier: {carrier}", quote_id, "API",today,unique_id,rate_type)
 
     return {
+        "Rate Type": rate_type,
         "Rate": float(rate) * 1.5,
         "Carrier Name": carrier,
-        "Service Provider": "J.B. Hunt"
+        "Service Provider": "J.B. Hunt",
+        "Source":"API",
+        "Date":today
     }
 
-def jbhunt_api(origin_zip, destination_zip, weight, quote_id):
+def jbhunt_api(origin_zip, fba_code, destination_zip, weight, quote_id,unique_id,rate_type):
     df = pd.read_excel(r"Data/API Data/jbhunt_output.xlsx")
 
     origin_zip = str(origin_zip).zfill(5)
@@ -136,21 +149,34 @@ def jbhunt_api(origin_zip, destination_zip, weight, quote_id):
         (df['FBA ZIP'] == destination_zip) &
         (df['Weight'] == weight)
     ]
+    match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+    match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
 
     if not match.empty:
+        today = pd.to_datetime(datetime.today().strftime("%d-%m-%Y"), format="%d-%m-%Y")
         valid_rows = match[
-            match['Rate'].notna() & (match['Rate'] != '') &
-            match['Carrier Name'].notna() & (match['Carrier Name'] != '')
+            match['Rate'].notna() & (match['Rate'] != '') & (match['Rate'].astype(float) != 0.0) &
+            (match['Valid From'] <= today) & (match['Valid To'] >= today)
         ]
 
         if not valid_rows.empty:
+            # Convert Rate to float before sorting to avoid string-based sorting
+            valid_rows['Rate'] = valid_rows['Rate'].astype(float)
+            # Sort in ascending order of Rate
+            valid_rows = valid_rows.sort_values(by='Rate', ascending=True).reset_index(drop=True)
+
             row = valid_rows.iloc[0]
-            log_jbhunt_quote(origin_zip, destination_zip, weight, "Success", f'Rate: {float(row["Rate"]) * 1.5}, Carrier: {row["Carrier Name"]}', quote_id, "STATIC DATA")
+            log_jbhunt_quote(origin_zip, fba_code, destination_zip, weight, 
+                             "Success", f'Rate: {float(row["Rate"]) * 1.5}, Carrier: {row["Carrier Name"]}',
+                               quote_id, "API STATIC DATA", row['Date Modified'],unique_id,rate_type)
             return {
+                "Rate Type": rate_type,
                 "Rate": float(row["Rate"]) * 1.5,
                 "Carrier Name": row["Carrier Name"],
-                "Service Provider": "J.B. Hunt"
+                "Service Provider": "J.B. Hunt",
+                "Source":"API STATIC DATA",
+                "Date":row['Date Modified']
             }
 
     # Fallback to API
-    return api(origin_zip, destination_zip, weight, quote_id)
+    return api(origin_zip, fba_code, destination_zip, weight, quote_id,unique_id,rate_type)

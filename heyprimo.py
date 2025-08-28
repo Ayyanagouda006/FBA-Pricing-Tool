@@ -7,21 +7,24 @@ import os
 LOG_FILE = r"Logs/heyprimo_api_tracking.xlsx"
 
 # ----------------- Logging Function -----------------
-def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, status, message,quote_id,source):
+def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, status, message,quote_id,source,date,unique_id,fba_code):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = {
         "Quotation Number":quote_id,
+        'Unique ID':unique_id,
         "Timestamp": timestamp,
         "Origin City": ori_city,
         "Origin State Code": ori_state,
         "Origin ZIP": ori_zip,
+        "FBA Code": fba_code,
         "Destination City": dest_city,
         "Destination State Code": dest_state,
         "Destination ZIP": dest_zip,
         "Pallet Count": qty,
         "Status": status,
         "Message": message,
-        "Source":source
+        "Source":source,
+        "Date":date
     }
 
     if os.path.exists(LOG_FILE):
@@ -70,7 +73,9 @@ def api(row: dict):
         dest_zip = str(row['FBA or Destination ZIP']).zfill(5)
         qty = int(row['Num Of Pallet'])
         quote_id = row["quote_id"]
-
+        unique_id = row['unique id']
+        fba_code = row["FBA Code"]
+        today = datetime.today().date().strftime("%d-%m-%Y")
         query_params = {
             "destinationCity": dest_city,
             "destinationCountry": "US",
@@ -104,12 +109,12 @@ def api(row: dict):
         api_response = fetch_shipping_rates(token, query_params)
 
         if not api_response or "data" not in api_response or "results" not in api_response["data"]:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No response or missing data/results",quote_id,"")
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No response or missing data/results",quote_id,"",today,unique_id,fba_code)
             return None
 
         rates = api_response["data"]["results"]["rates"]
         if not rates:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "Empty rates list",quote_id,"")
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "Empty rates list",quote_id,"",today,unique_id,fba_code)
             return None
 
         data_list = []
@@ -132,22 +137,24 @@ def api(row: dict):
         filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
 
         if filtered_df.empty:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No rates matched preferred SCAC list",quote_id,"")
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No rates matched preferred SCAC list",quote_id,"",today,unique_id,fba_code)
             return None
 
         best_rate = filtered_df.nsmallest(1, 'Total Cost').iloc[0]
         result = {
             "Lowest Rate": best_rate["Total Cost"],
-            "Carrier Name": best_rate["Carrier"]
+            "Carrier Name": best_rate["Carrier"],
+            "Source":"API",
+            "Date":today
         }
 
-        log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Success", f"Rate: {result['Lowest Rate']}, Carrier: {result['Carrier Name']}",quote_id,"API")
+        log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Success", f"Rate: {result['Lowest Rate']}, Carrier: {result['Carrier Name']}",quote_id,"API",today,unique_id,fba_code)
         return result
 
     except Exception as e:
         log_heyprimo_result(row.get('Origin City', ''), row.get('Origin State Code', ''), row.get("Origin ZIP", ""), 
                             row.get('Destn City',''), row.get('Destn State Code', ''), row.get("FBA or Destination ZIP", ""), 
-                            row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}",quote_id,"")
+                            row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}",quote_id,"",today,unique_id,fba_code)
         return None
 
 def heyprimo_api(row: dict):
@@ -160,6 +167,8 @@ def heyprimo_api(row: dict):
     fba_zip = row["FBA or Destination ZIP"]
     qty = row["Num Of Pallet"]
     quote_id = row["quote_id"]
+    unique_id = row['unique id']
+    fba_code = row["FBA Code"]
 
     fpod_zip = str(fpod_zip).zfill(5)
     fba_zip = str(fba_zip).zfill(5)
@@ -176,14 +185,22 @@ def heyprimo_api(row: dict):
         # (df['FBA STATE CODE'] == fba_st_code) &
         (df['Pallets'] == qty)
     ]
+    match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+    match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
 
     if not match.empty:
+        today = pd.to_datetime(datetime.today().strftime("%d-%m-%Y"), format="%d-%m-%Y")
         valid_rows = match[
-            match['Rate'].notna() & (match['Rate'] != '') &
-            match['Carrier Name'].notna() & (match['Carrier Name'] != '')
+            match['Rate'].notna() & (match['Rate'] != '') & (match['Rate'].astype(float) != 0.0) &
+            (match['Valid From'] <= today) & (match['Valid To'] >= today)
         ]
-        
+
         if not valid_rows.empty:
+            # Convert Rate to float before sorting to avoid string-based sorting
+            valid_rows['Rate'] = valid_rows['Rate'].astype(float)
+            # Sort in ascending order of Rate
+            valid_rows = valid_rows.sort_values(by='Rate', ascending=True).reset_index(drop=True)
+
             rows = valid_rows.iloc[0]
             log_heyprimo_result(
                 fpod_city,
@@ -196,12 +213,15 @@ def heyprimo_api(row: dict):
                 "Success",
                 f'Rate: {rows["Rate"]}, Carrier: {rows["Carrier Name"]}',
                 quote_id,
-                "API"
+                "STATIC DATA",
+                rows['Date Modified'],unique_id,fba_code
             )
 
             return {
                 "Lowest Rate": rows["Rate"],
-                "Carrier Name": rows["Carrier Name"]
+                "Carrier Name": rows["Carrier Name"],
+                "Source":"API STATIC DATA",
+                "Date":rows['Date Modified']
             }
         
     # Fallback to API

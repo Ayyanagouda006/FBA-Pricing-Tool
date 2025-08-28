@@ -10,7 +10,7 @@ from datetime import datetime
 exchange_rate=88
 
 
-def log_booking(booking_id, quotation_no, output1, output2, log_file):
+def log_booking(booking_id, quotation_no, unique_id, output1, output2, log_file):
 
     # --- Add metadata ---
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -20,6 +20,7 @@ def log_booking(booking_id, quotation_no, output1, output2, log_file):
     for df in [summary_df, breakdown_df]:
         df["Booking ID"] = booking_id
         df["Quotation Number"] = quotation_no
+        df['Unique ID'] = unique_id
         df["Log Timestamp"] = timestamp
 
     # --- Load existing log ---
@@ -33,16 +34,6 @@ def log_booking(booking_id, quotation_no, output1, output2, log_file):
             existing_breakdown = pd.read_excel(log_file, sheet_name="Breakdown")
         except Exception:
             existing_breakdown = pd.DataFrame()
-
-        # 🔹 Remove any rows matching same Quotation + Booking
-        existing_summary = existing_summary[
-            ~((existing_summary["Quotation Number"] == quotation_no) &
-              (existing_summary["Booking ID"] == booking_id))
-        ]
-        existing_breakdown = existing_breakdown[
-            ~((existing_breakdown["Quotation Number"] == quotation_no) &
-              (existing_breakdown["Booking ID"] == booking_id))
-        ]
 
         # Append fresh data
         updated_summary = pd.concat([existing_summary, summary_df], ignore_index=True)
@@ -68,6 +59,7 @@ def summarization(data, quote_id, booking_counter):
     for dest, modes in data.items():
         for mode, details in modes.items():
             rows.append({
+                'Unique ID':details.get("Unique ID", ""),
                 "Origin Address": details.get("Origin", ""),
                 "POL": details.get("POL", ""),
                 "P2P Type": mode,
@@ -105,6 +97,7 @@ def summarization(data, quote_id, booking_counter):
     for (fpod, category), df_group in df_all.groupby(["FPOD", "Category"]):
         orows = []
 
+        unique_id = list(df_group['Unique ID'].unique())[0]
         first_mile = df_group["1st Mile"].astype(float).max()
         quote_tot_cbm = df_group["Quotation Total CBM"].astype(float).max()
         first_mile_pcbm = float(first_mile) / float(quote_tot_cbm)
@@ -294,7 +287,7 @@ def summarization(data, quote_id, booking_counter):
         ]]
 
         # --- Booking Logging ---
-        log_booking(f"Booking {booking_counter}", quote_id, output1, output2, log_file)
+        log_booking(f"Booking {booking_counter}", quote_id, unique_id, output1, output2, log_file)
 
         # -----------------------
 
@@ -305,7 +298,7 @@ def summarization(data, quote_id, booking_counter):
 
 
 
-def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, qty, weight,quote_id):
+def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code, fba_zip, qty, weight,quote_id,unique_id):
     # Read offline last mile rates
     lm = pd.read_excel(r"Data/Last Mile Rates (no api).xlsx", "Last Mile Rates (no api)")
     lm = lm[lm['Delivery Type'] == "LTL"]
@@ -317,43 +310,60 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, 
         "Origin ZIP": fpod_zip,
         "Destn City": fba_city,
         "Destn State Code": fba_st_code,
+        "FBA Code": fba_code,
         "FBA or Destination ZIP": fba_zip,
         "Num Of Pallet": qty,
-        "quote_id":quote_id
+        "quote_id":quote_id,
+        'unique id':unique_id
     })
 
-    ef_result = exfreight_api(fpod_zip, fba_zip, weight, qty, quote_id)
+    ef_result = exfreight_api(fpod_zip, fba_code, fba_zip, weight, qty, quote_id, unique_id)
 
     # Step 2: Parse rates from API safely
     candidates = []
 
     if isinstance(hp_result, dict) and "Lowest Rate" in hp_result:
         candidates.append({
+            "Rate Type": "LTL",
             "Rate": round(float(hp_result["Lowest Rate"]), 2),
-            "Carrier Name": hp_result["Carrier Name"],
-            "Service Provider": "HeyPrimo"
+            "Carrier Name": hp_result.get("Carrier Name", ""),
+            "Service Provider": "HeyPrimo",
+            "Source": hp_result.get("Source", ""),   # safe default
+            "Date": hp_result.get("Date", "")
         })
+
 
     if isinstance(ef_result, dict) and "Lowest Rate" in ef_result:
         candidates.append({
+            "Rate Type": "LTL",
             "Rate": round(float(ef_result["Lowest Rate"]), 2),
-            "Carrier Name": ef_result["Carrier Name"],
-            "Service Provider": "Ex-Freight"
+            "Carrier Name": ef_result.get("Carrier Name", ""),
+            "Service Provider": "Ex-Freight",
+            "Source": ef_result.get("Source", ""),   # ✅ use ef_result not hp_result
+            "Date": ef_result.get("Date", "")
         })
+
 
     # Step 3: Find offline Excel rates (exact match by zip + pallet count)
     try:
+        today = pd.to_datetime(datetime.today().strftime("%d-%m-%Y"), format="%d-%m-%Y")
+        lm["Valid From"] = pd.to_datetime(lm["Valid From"], format="%d-%m-%Y", errors="coerce")
+        lm["Valid To"] = pd.to_datetime(lm["Valid To"], format="%d-%m-%Y", errors="coerce")
         offline_match = lm[
             (lm['FPOD ZIP'].astype(str).str.zfill(5) == str(fpod_zip).zfill(5)) &
             (lm['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5)) &
-            (lm['No. of pallets'] == qty)
+            (lm['No. of pallets'] == qty) &
+            (lm['Valid From'] <= today) & (lm['Valid To'] >= today)
         ]
 
         for _, row in offline_match.iterrows():
             candidates.append({
+                "Rate Type": "LTL",
                 "Rate": round(float(row['Rate']), 2),
                 "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
-                "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
+                "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
+                "Source":"No API STATIC DATA",
+                "Date":row['Date Modified'] if not pd.isna(row['Date Modified']) else ""
             })
     except Exception as e:
         print("Error matching offline Excel rate:", e)
@@ -364,9 +374,12 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip, 
     else:
         return None
     
-def ftl_rate(fpod_zip, fba_zip, qty, quote_id):
+def ftl_rate(fpod_zip, fba_code, fba_zip, qty, quote_id,unique_id):
     lm = pd.read_excel(r"Data/Last Mile Rates (no api).xlsx", "Last Mile Rates (no api)")
-    
+    today = pd.to_datetime(datetime.today().strftime("%d-%m-%Y"), format="%d-%m-%Y")
+    lm["Valid From"] = pd.to_datetime(lm["Valid From"], format="%d-%m-%Y", errors="coerce")
+    lm["Valid To"] = pd.to_datetime(lm["Valid To"], format="%d-%m-%Y", errors="coerce")
+
     # Separate FTL and FTL53 sheets
     lm_ftl = lm[lm['Delivery Type'] == "FTL"]
     lm_ftl53 = lm[lm['Delivery Type'] == "FTL53"]
@@ -374,33 +387,41 @@ def ftl_rate(fpod_zip, fba_zip, qty, quote_id):
     ftl_cand = []
     ftl_match = lm_ftl[
         (lm_ftl['FPOD ZIP'].astype(str).str.zfill(5) == str(fpod_zip).zfill(5)) &
-        (lm_ftl['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5))
+        (lm_ftl['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5)) &
+        (lm_ftl['Valid From'] <= today) & (lm_ftl['Valid To'] >= today)
     ]
 
     for _, row in ftl_match.iterrows():
         ftl_cand.append({
+            "Rate Type": "FTL",
             "Rate": round(float(row['Rate']), 2),
             "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
-            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
+            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
+            "Source":"No API STATIC DATA",
+            "Date":row['Date Modified'] if not pd.isna(row['Date Modified']) else ""
         })
 
-    ftl_jb = jbhunt_api(fpod_zip, fba_zip, "11024", quote_id)
+    ftl_jb = jbhunt_api(fpod_zip, fba_code, fba_zip, "11024", quote_id,unique_id,"FTL")
     ftl_cand.append(ftl_jb)
 
     ftl53_cand = []
     ftl53_match = lm_ftl53[
         (lm_ftl53['FPOD ZIP'].astype(str).str.zfill(5) == str(fpod_zip).zfill(5)) &
-        (lm_ftl53['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5))
+        (lm_ftl53['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5)) &
+        (lm_ftl53['Valid From'] <= today) & (lm_ftl53['Valid To'] >= today)
     ]
 
     for _, row in ftl53_match.iterrows():
         ftl53_cand.append({
+            "Rate Type": "FTL53",
             "Rate": round(float(row['Rate']), 2),
             "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
-            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else ""
+            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
+            "Source":"No API STATIC DATA",
+            "Date":row['Date Modified'] if not pd.isna(row['Date Modified']) else ""
         })
 
-    ftl53_jb = jbhunt_api(fpod_zip, fba_zip, "45000", quote_id)
+    ftl53_jb = jbhunt_api(fpod_zip, fba_code, fba_zip, "45000", quote_id,unique_id,"FTL53")
     ftl53_cand.append(ftl53_jb)
     # Safely return min if any rates were found, else None
     best_ftl = min(ftl_cand, key=lambda x: x["Rate"]) if ftl_cand else None
@@ -408,8 +429,8 @@ def ftl_rate(fpod_zip, fba_zip, qty, quote_id):
 
     return best_ftl, best_ftl53
 
-def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip,
-                     total_pallet_count, weight, category, service_modes, quote_id):
+def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code, fba_zip,
+                     total_pallet_count, weight, category, service_modes, quote_id, unique_id):
     drayage = None
     ltl = None
     ftl = None
@@ -417,18 +438,20 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
 
     # Special case for HOT category
     if set(service_modes) == {"Drayage"}:
-        drayage = jbhunt_api(fpod_zip, fba_zip, "45000", quote_id)
+        drayage = jbhunt_api(fpod_zip, fba_code, fba_zip, "45000", quote_id, unique_id,"Drayage")
         drayage_lowest = {
-            "Rate Type": "Drayage",
+            "Rate Type": drayage.get("Rate Type"),
             "Rate": drayage.get("Rate"),
             "Carrier Name": drayage.get("Carrier Name"),
-            "Service Provider": drayage.get("Service Provider")
+            "Service Provider": drayage.get("Service Provider"),
+            "Source":drayage.get("Source"),
+            "Date":drayage.get("Date")
         }
         return None, None, None, drayage_lowest, drayage_lowest, drayage_lowest
 
     # --- CASE 1: ["FTL", "FTL53"] ---
     if set(service_modes) == {"FTL", "FTL53"}:
-        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count, quote_id)
+        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_code, fba_zip, total_pallet_count, quote_id,unique_id)
 
         # Safe rate division if dict and valid
         if isinstance(ftl_result, dict) and isinstance(ftl_result.get("Rate"), (int, float)) and ftl_result["Rate"] > 0:
@@ -448,13 +471,15 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
             "Rate Type": lowest_mode,
             "Rate": lowest_rate_data.get("Rate", 0.0),
             "Carrier Name": lowest_rate_data.get("Carrier Name", ""),
-            "Service Provider": lowest_rate_data.get("Service Provider", "")
+            "Service Provider": lowest_rate_data.get("Service Provider", ""),
+            "Source":lowest_rate_data.get("Source"),
+            "Date":lowest_rate_data.get("Date")
         }
         return None, ftl_result, ftl53_result, None, lowest, selected_lowest
 
     # --- CASE 2: ["FTL53"] ---
     if set(service_modes) == {"FTL53"}:
-        _, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count,quote_id)
+        _, ftl53_result = ftl_rate(fpod_zip,fba_code, fba_zip, total_pallet_count,quote_id,unique_id)
         if isinstance(ftl53_result, dict) and isinstance(ftl53_result.get("Rate"), (int, float)) and ftl53_result["Rate"] > 0:
             ftl53_result["Rate"] /= 48
 
@@ -462,18 +487,20 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
             "Rate Type": "FTL53",
             "Rate": ftl53_result.get("Rate", 0.0) if isinstance(ftl53_result, dict) else 0.0,
             "Carrier Name": ftl53_result.get("Carrier Name", "") if isinstance(ftl53_result, dict) else "",
-            "Service Provider": ftl53_result.get("Service Provider", "") if isinstance(ftl53_result, dict) else ""
+            "Service Provider": ftl53_result.get("Service Provider", "") if isinstance(ftl53_result, dict) else "",
+            "Source":ftl53_result.get("Source","") if isinstance(ftl53_result, dict) else "",
+            "Date":ftl53_result.get("Date") if isinstance(ftl53_result, dict) else ""
         }
         return None, None, ftl53_result, None, lowest, selected_lowest
 
 
     # --- CASE 3: Other combinations (with LTL or more) ---
     if "LTL" in service_modes:
-        ltl = ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, fba_zip,
-                       total_pallet_count, weight, quote_id)
+        ltl = ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code, fba_zip,
+                       total_pallet_count, weight, quote_id,unique_id)
 
     if "FTL" in service_modes or "FTL53" in service_modes:
-        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_zip, total_pallet_count, quote_id)
+        ftl_result, ftl53_result = ftl_rate(fpod_zip, fba_code,fba_zip, total_pallet_count, quote_id,unique_id)
         if "FTL" in service_modes:
             ftl = ftl_result
         if "FTL53" in service_modes:
@@ -499,14 +526,18 @@ def rates_comparison(fpod_city, fpod_st_code, fpod_zip, fba_city, fba_st_code, f
             "Rate Type": min_mode,
             "Rate": valid_rates[min_mode]["Rate"],
             "Carrier Name": valid_rates[min_mode].get("Carrier Name", ""),
-            "Service Provider": valid_rates[min_mode].get("Service Provider", "")
+            "Service Provider": valid_rates[min_mode].get("Service Provider", ""),
+            "Source":valid_rates[min_mode].get("Source", ""),
+            "Date":valid_rates[min_mode].get("Date", "")
         }
     else:
         lowest = selected_lowest = {
             "Rate Type": "N/A",
             "Rate": 0.0,
             "Carrier Name": "",
-            "Service Provider": ""
+            "Service Provider": "",
+            "Source":"",
+            "Date":""
         }
 
     return ltl, ftl, ftl53, drayage, lowest, selected_lowest
@@ -559,7 +590,7 @@ def classify_fba_code(fba_locations: pd.DataFrame, fba_code: str, quote_cbm: flo
 
 
 def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipment_scope, pickup_charges_inr, 
-          selected_service, grand_total_weight, grand_total_cbm, quote_id):
+          selected_service, grand_total_weight, grand_total_cbm, quote_id,unique_id):
     
     pickup_charges = 0.0
     if shipment_scope == "Door-to-Door":
@@ -601,9 +632,17 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                 width = float(item.get("width", 0.0))
                 height = float(item.get("height", 0.0))
                 try:
-                    item_weight = float(item.get("totalWeight", 0.0))
+
+                    item_totweight = float(item.get("totalWeight", 0.0))
+                    if item_totweight == 0.0:
+                        item_weight = item_qty * item_wtppack
+                    else:
+                        item_weight = item_totweight
                 except (TypeError, ValueError):
-                    item_weight = item_qty * item_wtppack
+                    if item_wtppack == 0.0:
+                        item_weight = 0.0
+                    else:
+                        item_weight = item_qty * item_wtppack
 
                 try:
                     item_tot = float(item.get("totalVolume", 0.0))
@@ -679,9 +718,9 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
 
             try:
                 ltl, ftl, ftl53, drayage, lowest, selected_lowest = rates_comparison(
-                    fpod_city, fpod_st_code, fpod_zip,
+                    fpod_city, fpod_st_code, fpod_zip, fba_code, 
                     fba_city, fba_st_code, fba_zip,
-                    total_pallet_count, weight, category, services, quote_id
+                    total_pallet_count, weight, category, services, quote_id, unique_id
                 )
             except Exception as e:
                 errors.append(f"❌ Rate comparison failed for {destination_name} (FBA {fba_code}): {e}")
@@ -706,7 +745,11 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                     pol_unloc = prow['POR/POL']
                     oc_p2p_inr = prow['Origin charges per Container(INR)']
                     of_p2p = prow['Ocean Freight (USD)']
+                    dd_p2p = prow['Drayage & Devanning(USD)']
+                    tcost_p2p = prow['Total cost (USD)']
                     p2ploadability = prow['Loadability']
+                    
+
 
                     if "Drayage" in services and console_type == 'Own Console':
                         oc_p2p_usd = float(oc_p2p_inr)/float(exchange_rate)
@@ -779,6 +822,7 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                     tot_pcbm = gtotal / total_cbm if total_cbm else 0
 
                     results[destination_name][console] = {
+                        'Unique ID':unique_id,
                         "Shipment Scope":shipment_scope,
                         "Origin": origin,
                         "POL": pol,
@@ -808,6 +852,11 @@ def rates(origin, cleaned_data, console_selected, is_occ, is_dcc, des_val, shipm
                         "Pick-Up Charges": pickup_charges,
                         "PER CBM P2P": percbm_p2p,
                         "PER CBM P2P & Doc": percbm_p2p + doc_pcbm,
+                        "P2P Origin charges per Container(INR)":oc_p2p_inr,
+                        "P2P Ocean Freight (USD)":of_p2p,
+                        "P2P Drayage & Devanning(USD)":dd_p2p,
+                        "P2P Total cost (USD)":tcost_p2p,
+                        "P2P Loadability": p2ploadability,
                         "P2P Charge": total_p2p,
                         "Destination Doc": float(pod_doc),
                         "OCC": float(occ),
