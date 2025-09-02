@@ -363,7 +363,7 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code,
                 "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
                 "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
                 "Source":"No API STATIC DATA",
-                "Date":row['Date Modified'] if not pd.isna(row['Date Modified']) else ""
+                "Date": row['Date Modified'].strftime("%d-%m-%Y") if not pd.isna(row['Date Modified']) else ""
             })
     except Exception as e:
         print("Error matching offline Excel rate:", e)
@@ -398,7 +398,7 @@ def ftl_rate(fpod_zip, fba_code, fba_zip, qty, quote_id,unique_id):
             "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
             "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
             "Source":"No API STATIC DATA",
-            "Date":row['Date Modified'] if not pd.isna(row['Date Modified']) else ""
+            "Date": row['Date Modified'].strftime("%d-%m-%Y") if not pd.isna(row['Date Modified']) else ""
         })
 
     ftl_jb = jbhunt_api(fpod_zip, fba_code, fba_zip, "11024", quote_id,unique_id,"FTL")
@@ -418,7 +418,7 @@ def ftl_rate(fpod_zip, fba_code, fba_zip, qty, quote_id,unique_id):
             "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
             "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
             "Source":"No API STATIC DATA",
-            "Date":row['Date Modified'] if not pd.isna(row['Date Modified']) else ""
+            "Date": row['Date Modified'].strftime("%d-%m-%Y") if not pd.isna(row['Date Modified']) else ""
         })
 
     ftl53_jb = jbhunt_api(fpod_zip, fba_code, fba_zip, "45000", quote_id,unique_id,"FTL53")
