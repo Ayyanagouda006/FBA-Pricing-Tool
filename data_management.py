@@ -10,25 +10,25 @@ import time
 # ---------- FBA Tariff Validation Setup ----------
 FBA_FILE_PATH = "Data/FBA Rates.xlsx"
 
-EXPECTED_SHEETS = ["FBA Locations", "P2P", "Accessorials", "Palletization"]
-
-EXPECTED_FBA_LOCATIONS = [
-    "FPOD ZIP", "FPOD CITY", "FPOD UNLOC", "FPOD STATE CODE", "FPOD CFS NAME",
-    "FBA Code", "FBA ZIP", "FBA CITY", "FBA STATE CODE", "Last 10 weeks",
-    "Last 1 Week", "Last 3 Week", "Pre-Determined Bucket", "Loadability",
-    "Consolidator", "FBA / Destn Coast"
-]
-
-EXPECTED_P2P = [
-    "P2P Type", "Carrier SCAC", "POL Name", "POR/POL", "FPOD Name", "FPOD UNLOC", "FPOD Name",
-    "Origin charges per Container(INR)", "OIH", "Ocean Freight (USD)", "DIH", "Drayage & Devanning(USD)",
-    "Total cost (USD)", "Loadability", "Per CBM(USD)", "Valid From", "Valid To", "Notes"
-]
-
-EXPECTED_ACCESSORIALS = ["Charge Head", "FPOD", "Location Unloc", "Currency", "Amount"]
-EXPECTED_PALLETIZATION = ["Service Type", "FPOD", "FPOD UNLOC", "Currency", "Amount"]
-
 def validate_fba_tariff(file_path):
+    EXPECTED_SHEETS = ["FBA Locations", "P2P", "Accessorials", "Palletization"]
+
+    EXPECTED_FBA_LOCATIONS = [
+        "FPOD ZIP", "FPOD CITY", "FPOD UNLOC", "FPOD STATE CODE", "FPOD CFS NAME",
+        "FBA Code", "FBA ZIP", "FBA CITY", "FBA STATE CODE", "Last 10 weeks",
+        "Last 1 Week", "Last 3 Week", "Pre-Determined Bucket", "Loadability",
+        "Consolidator", "FBA / Destn Coast"
+    ]
+
+    EXPECTED_P2P = [
+        "P2P Type", "Carrier SCAC", "POL Name", "POR/POL", "FPOD Name", "FPOD UNLOC", "FPOD Name",
+        "Origin charges per Container(INR)", "OIH", "Ocean Freight (USD)", "DIH", "Drayage & Devanning(USD)",
+        "Total cost (USD)", "Loadability", "Per CBM(USD)", "Valid From", "Valid To", "Notes"
+    ]
+
+    EXPECTED_ACCESSORIALS = ["Charge Head", "FPOD", "Location Unloc", "Currency", "Amount"]
+    EXPECTED_PALLETIZATION = ["Service Type", "FPOD", "FPOD UNLOC", "Currency", "Amount"]
+
     try:
         xl = pd.ExcelFile(file_path)
 
@@ -107,6 +107,73 @@ def validate_fba_tariff(file_path):
 
     except Exception as e:
         return f"❌ Error reading file: {str(e)}"
+    
+# ---------- Last Mile Rates Validation ----------
+def validate_last_mile(file_path):
+    EXPECTED_LAST_MILE = [
+        "Date Modified", "FPOD ZIP", "FPOD CITY", "FPOD UNLOC", "FPOD STATE CODE", "FPOD CFS NAME",
+        "Origin Type", "FBA Code", "FBA ZIP", "FBA CITY", "FBA STATE CODE",
+        "Broker", "Delivery Type", "No. of pallets", "Rate", "Carrier Name",
+        "Valid From", "Valid To"
+    ]
+
+    VALID_DELIVERY_TYPES = ["FTL53", "FTL", "LTL", "Drayage"]
+
+    try:
+        df = pd.read_excel(file_path)
+
+        # 1) Check all required columns exist
+        for col in EXPECTED_LAST_MILE:
+            if col not in df.columns:
+                return f"❌ Missing column: {col}"
+
+        # 2) Mandatory columns should not be blank
+        required_cols = [
+            "Date Modified", "FPOD ZIP", "FPOD CITY", "FPOD UNLOC", "FPOD STATE CODE",
+            "FPOD CFS NAME", "Origin Type", "FBA Code", "FBA ZIP", "FBA CITY", "FBA STATE CODE",
+            "Broker", "Delivery Type", "Rate", "Valid From", "Valid To"
+        ]
+        for col in required_cols:
+            if df[col].isna().any() or df[col].eq("").any():
+                return f"❌ Blank values found in column '{col}'"
+
+        # 3a) Date columns must be in dd-mm-yyyy format
+        for col in ["Date Modified", "Valid From", "Valid To"]:
+            try:
+                df[col] = pd.to_datetime(df[col], format="%d-%m-%Y", errors="raise")
+            except Exception:
+                return f"❌ Column '{col}' must be in dd-mm-yyyy format (e.g., 01-08-2025)"
+
+        # 3b) Rate must be float
+        if not pd.api.types.is_float_dtype(df["Rate"]):
+            try:
+                df["Rate"] = df["Rate"].astype(float)
+            except Exception:
+                return "❌ 'Rate' column must contain numeric (float) values"
+
+        # 3c) Delivery Type must be valid
+        if not df["Delivery Type"].isin(VALID_DELIVERY_TYPES).all():
+            bad_values = df.loc[~df["Delivery Type"].isin(VALID_DELIVERY_TYPES), "Delivery Type"].unique()
+            return f"❌ Invalid Delivery Type(s): {', '.join(map(str, bad_values))}. Allowed: {', '.join(VALID_DELIVERY_TYPES)}"
+
+        # 4) Delivery Type vs No. of pallets logic
+        for i, row in df.iterrows():
+            if row["Delivery Type"] in ["FTL53", "FTL", "Drayage"]:
+                if pd.notna(row["No. of pallets"]) and str(row["No. of pallets"]).strip() != "":
+                    return f"❌ Row {i+2}: 'No. of pallets' must be blank for Delivery Type {row['Delivery Type']}"
+            elif row["Delivery Type"] == "LTL":
+                try:
+                    if pd.isna(row["No. of pallets"]) or str(row["No. of pallets"]).strip() == "":
+                        return f"❌ Row {i+2}: 'No. of pallets' must not be blank for LTL"
+                    int(row["No. of pallets"])
+                except Exception:
+                    return f"❌ Row {i+2}: 'No. of pallets' must be an integer for LTL"
+
+        return "✅ File validation passed"
+
+    except Exception as e:
+        return f"❌ Error reading file: {str(e)}"
+
 
 
 # ---------- Row Renderer ----------
@@ -189,6 +256,6 @@ def data_management_app():
     if selected == "Uploads":
         st.markdown("<hr style='margin:0; border: 1px solid #ccc;'>", unsafe_allow_html=True)
         upload_row("FBA Tariff", FBA_FILE_PATH, validate_func=validate_fba_tariff)
-        upload_row("Last Mile Rates (No API)", "Data/Last Mile Rates (no api).xlsx")
+        upload_row("Last Mile Rates (No API)", "Data/Last Mile Rates (no api).xlsx", validate_func=validate_last_mile)
     elif selected == "Search Quotation":
         search_quotations_app()
