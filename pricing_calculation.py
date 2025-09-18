@@ -196,6 +196,8 @@ def summarization(data, quote_id, booking_counter):
         for fba_code, value in lm.items():
             lm_rate = value["Rate"]
             lm_cbm = value["CBM"]
+            if lm_cbm < 1:
+                lm_cbm = 1
             service_modes = value["Service Modes"]
             if value["LM Delivery Type"] == "Drayage":
                 loadability = value['LM Loadability']
