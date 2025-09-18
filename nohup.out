@@ -871,3 +871,392 @@ Traceback (most recent call last):
   File "/home/ubuntu/FBA-Pricing-Tool/calculator.py", line 297, in fba_quote_app
     result, errors, skipped_fba = rates(
 ValueError: not enough values to unpack (expected 3, got 2)
+
+Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
+
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8506
+  Network URL: http://172.31.40.84:8506
+  External URL: http://3.108.70.93:8506
+
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+2025-09-04 15:49:17.576 Session with id 9be28ada-1c5e-41b7-a642-8ead678cd1b5 is already connected! Connecting to a new session.
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/pricing_calculation.py:550: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  sub_df["Pre-Determined Bucket"] = sub_df["Pre-Determined Bucket"].fillna("").astype(str).str.upper()
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
