@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 from calculator import fba_quote_app
 from data_management import data_management_app
+from US_lm_calculator import trans_cal
 # ----------------- Page Setup -----------------
 st.set_page_config(page_title="Shipping Suite", layout="wide")
 
@@ -17,8 +18,8 @@ if "previous_tab" not in st.session_state:
 
 selected = option_menu(
     menu_title=None,
-    options=["FBA Quote", "Data Management"],
-    icons=["box", "cloud-upload"],
+    options=["FBA Quote", "US Transport Rate Calculator", "Data Management"],
+    icons=["box", "truck", "cloud-upload"],
     orientation="horizontal",
     styles={
         "container": {
@@ -48,6 +49,8 @@ st.session_state.previous_tab = selected
 if selected == "FBA Quote":
     st.title("📦 FBA Quote Calculator")
     fba_quote_app()
+elif selected == "US Transport Rate Calculator":
+    trans_cal()
 
 elif selected == "Data Management":
     if not st.session_state.authenticated:
