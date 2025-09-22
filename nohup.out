@@ -1374,3 +1374,123 @@ Try using .loc[row_indexer,col_indexer] = value instead
 
 See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
   match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+2025-09-19 08:05:01.876 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 5, in <module>
+    from US_lm_calculator import trans_cal
+  File "/home/ubuntu/FBA-Pricing-Tool/US_lm_calculator.py", line 4, in <module>
+    from streamlit_searchbox import st_searchbox  # pip install streamlit-searchbox
+ModuleNotFoundError: No module named 'streamlit_searchbox'
+2025-09-19 08:05:39.467 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 5, in <module>
+    from US_lm_calculator import trans_cal
+  File "/home/ubuntu/FBA-Pricing-Tool/US_lm_calculator.py", line 4, in <module>
+    from streamlit_searchbox import st_searchbox  # pip install streamlit-searchbox
+ModuleNotFoundError: No module named 'streamlit_searchbox'
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0246LCL0039 logged successfully.
+✅ Booking Booking 2 for quotation CMM0246LCL0039 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0800LCL0076 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0800LCL0077 logged successfully.
+✅ Booking Booking 2 for quotation CMM0800LCL0077 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0800LCL0077 logged successfully.
+✅ Booking Booking 2 for quotation CMM0800LCL0077 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0800LCL0077 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0800LCL0078 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0637LCL0009 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0741LCL0014 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0741LCL0015 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0637LCL0012 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0014LCL0006 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0923LCL0001 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0657LCL0128 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0014LCL0007 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0914LCL0002 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0868LCL0007 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0868LCL0007 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0657LCL0128 logged successfully.
+✅ Quotations updated in: Logs/quotations.xlsx
+✅ Booking Booking 1 for quotation CMM0937LCL0001 logged successfully.
+  Stopping...
+
+Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
+
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8506
+  Network URL: http://172.31.40.84:8506
+  External URL: http://3.108.70.93:8506
+
+2025-09-19 08:06:59.109 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 5, in <module>
+    from US_lm_calculator import trans_cal
+  File "/home/ubuntu/FBA-Pricing-Tool/US_lm_calculator.py", line 4, in <module>
+    from streamlit_searchbox import st_searchbox  # pip install streamlit-searchbox
+ModuleNotFoundError: No module named 'streamlit_searchbox'
+2025-09-19 08:07:21.474 Uncaught app execution
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 640, in code_to_exec
+    exec(code, module.__dict__)
+  File "/home/ubuntu/FBA-Pricing-Tool/fba_main.py", line 5, in <module>
+    from US_lm_calculator import trans_cal
+  File "/home/ubuntu/FBA-Pricing-Tool/US_lm_calculator.py", line 4, in <module>
+    from streamlit_searchbox import st_searchbox  # pip install streamlit-searchbox
+ModuleNotFoundError: No module named 'streamlit_searchbox'
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:188: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/heyprimo.py:189: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:166: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid From"] = pd.to_datetime(match["Valid From"], format="%d-%m-%Y", errors="coerce")
+/home/ubuntu/FBA-Pricing-Tool/exfreight.py:167: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
