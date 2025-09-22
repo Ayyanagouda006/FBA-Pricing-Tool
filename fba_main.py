@@ -4,7 +4,7 @@ from calculator import fba_quote_app
 from data_management import data_management_app
 from US_lm_calculator import trans_cal
 # ----------------- Page Setup -----------------
-st.set_page_config(page_title="Shipping Suite", layout="wide")
+st.set_page_config(page_title="FBA Rates Calculator", layout="wide")
 
 VALID_EMAIL = "anshul.marele@agraga.com"
 VALID_PASSWORD = "An$M@Ag#FBA!"
