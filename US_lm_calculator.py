@@ -217,7 +217,7 @@ def trans_cal():
                     H = st.number_input("H (in)", min_value=0.0, step=1.0,
                                         key=f"H_{i}", value=float(row["H"]))
                 with col7:
-                    if st.button("🗑️", key=f"del_{i}"):
+                    if st.button("Delete", key=f"del_{i}"):
                         st.session_state.cargo_rows.pop(i)
                         st.rerun()   # 👈 force refresh immediately
 
