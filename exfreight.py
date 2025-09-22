@@ -125,7 +125,8 @@ def api(origin, fba_code, destination, weight, qty,quote_id,unique_id):
             return {"error": "No valid rate rows parsed", "raw_response": data}
 
         df = pd.DataFrame(rows)
-        best_rate = df.nsmallest(1, 'Total Charge (USD)').iloc[0]
+        filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
+        best_rate = filtered_df.nsmallest(1, 'Total Charge (USD)').iloc[0]
 
         log_data["Status"] = "Success"
         log_data["Carrier Name"] = best_rate["Carrier Name"]
