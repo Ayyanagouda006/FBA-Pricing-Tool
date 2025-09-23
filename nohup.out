@@ -1494,3 +1494,39 @@ Try using .loc[row_indexer,col_indexer] = value instead
 
 See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
   match["Valid To"] = pd.to_datetime(match["Valid To"], format="%d-%m-%Y", errors="coerce")
+2025-09-22 06:01:15.009 Received event for non-watched file: /home/ubuntu/FBA-Pricing-Tool/fba_main.py
+2025-09-22 06:01:15.010 Received event for non-watched file: /home/ubuntu/FBA-Pricing-Tool/fba_main.py
+2025-09-23 10:58:43.141 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/dataframe_util.py", line 822, in convert_pandas_df_to_arrow_bytes
+    table = pa.Table.from_pandas(df)
+  File "pyarrow/table.pxi", line 4751, in pyarrow.lib.Table.from_pandas
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 639, in dataframe_to_arrays
+    arrays = [convert_column(c, f)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 639, in <listcomp>
+    arrays = [convert_column(c, f)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 626, in convert_column
+    raise e
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 620, in convert_column
+    result = pa.array(col, type=type_, from_pandas=True, safe=safe)
+  File "pyarrow/array.pxi", line 362, in pyarrow.lib.array
+  File "pyarrow/array.pxi", line 87, in pyarrow.lib._ndarray_to_array
+  File "pyarrow/error.pxi", line 92, in pyarrow.lib.check_status
+pyarrow.lib.ArrowTypeError: ("Expected bytes, got a 'float' object", 'Conversion failed for column value with type object')
+2025-09-23 12:04:22.838 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.
+Traceback (most recent call last):
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/streamlit/dataframe_util.py", line 822, in convert_pandas_df_to_arrow_bytes
+    table = pa.Table.from_pandas(df)
+  File "pyarrow/table.pxi", line 4751, in pyarrow.lib.Table.from_pandas
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 639, in dataframe_to_arrays
+    arrays = [convert_column(c, f)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 639, in <listcomp>
+    arrays = [convert_column(c, f)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 626, in convert_column
+    raise e
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/pyarrow/pandas_compat.py", line 620, in convert_column
+    result = pa.array(col, type=type_, from_pandas=True, safe=safe)
+  File "pyarrow/array.pxi", line 362, in pyarrow.lib.array
+  File "pyarrow/array.pxi", line 87, in pyarrow.lib._ndarray_to_array
+  File "pyarrow/error.pxi", line 92, in pyarrow.lib.check_status
+pyarrow.lib.ArrowTypeError: ("Expected bytes, got a 'float' object", 'Conversion failed for column value with type object')
