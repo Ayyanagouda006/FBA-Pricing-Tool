@@ -63,7 +63,7 @@ def fetch_shipping_rates(token: str, query_params: dict) -> dict:
         return None
 
 # ----------------- Process Single Row -----------------
-def api(row: dict):
+def api(row: dict, accessorials):
     try:
         ori_city = row['Origin City'].strip().upper()
         ori_state = row['Origin State Code'].strip().upper()
@@ -87,7 +87,7 @@ def api(row: dict):
             "originZipcode": ori_zip,
             "rateTypesList[]": ["LTL", "Guaranteed"],
             "uom": "METRIC",
-            "accessorialsList[]": ["APD", "CTO"],
+            "accessorialsList[]": accessorials,
             "vendorIdList[]": [],
             "pickupDate": datetime.today().strftime("%Y-%m-%d"),
             "freightInfo": json.dumps([{
@@ -157,7 +157,7 @@ def api(row: dict):
                             row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}",quote_id,"",today,unique_id,fba_code)
         return None
 
-def heyprimo_api(row: dict):
+def heyprimo_api(row: dict, accessorials = ["APD", "CTO"]):
     df = pd.read_excel(r"Data/API Data/Heyprimo_output.xlsx")
     fpod_city = row["Origin City"]
     fpod_st_code = row["Origin State Code"]
@@ -225,4 +225,4 @@ def heyprimo_api(row: dict):
             }
         
     # Fallback to API
-    return api(row)
+    return api(row, accessorials)
