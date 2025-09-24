@@ -7,9 +7,10 @@ import os
 LOG_FILE = r"Logs/heyprimo_api_tracking.xlsx"
 
 # ----------------- Logging Function -----------------
-def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, status, message,quote_id,source,date,unique_id,fba_code):
+def log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, status, message,quote_id,source,date,unique_id,fba_code,quote_type):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = {
+        "Quote Type": quote_type,
         "Quotation Number":quote_id,
         'Unique ID':unique_id,
         "Timestamp": timestamp,
@@ -63,7 +64,7 @@ def fetch_shipping_rates(token: str, query_params: dict) -> dict:
         return None
 
 # ----------------- Process Single Row -----------------
-def api(row: dict, accessorials):
+def api(row: dict, accessorials,fba):
     try:
         ori_city = row['Origin City'].strip().upper()
         ori_state = row['Origin State Code'].strip().upper()
@@ -86,7 +87,7 @@ def api(row: dict, accessorials):
             "originState": ori_state,
             "originZipcode": ori_zip,
             "rateTypesList[]": ["LTL", "Guaranteed"],
-            "uom": "METRIC",
+            "uom": "US",
             "accessorialsList[]": accessorials,
             "vendorIdList[]": [],
             "pickupDate": datetime.today().strftime("%Y-%m-%d"),
@@ -109,12 +110,12 @@ def api(row: dict, accessorials):
         api_response = fetch_shipping_rates(token, query_params)
 
         if not api_response or "data" not in api_response or "results" not in api_response["data"]:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No response or missing data/results",quote_id,"",today,unique_id,fba_code)
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No response or missing data/results",quote_id,"",today,unique_id,fba_code,"LTL")
             return None
 
         rates = api_response["data"]["results"]["rates"]
         if not rates:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "Empty rates list",quote_id,"",today,unique_id,fba_code)
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "Empty rates list",quote_id,"",today,unique_id,fba_code,"LTL")
             return None
 
         data_list = []
@@ -134,10 +135,13 @@ def api(row: dict, accessorials):
             })
 
         df = pd.DataFrame(data_list)
-        filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
+        if fba:
+            filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
+        else:
+            filtered_df = df
 
         if filtered_df.empty:
-            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No rates matched preferred SCAC list",quote_id,"",today,unique_id,fba_code)
+            log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Failed", "No rates matched preferred SCAC list",quote_id,"",today,unique_id,fba_code,"LTL")
             return None
 
         best_rate = filtered_df.nsmallest(1, 'Total Cost').iloc[0]
@@ -148,16 +152,16 @@ def api(row: dict, accessorials):
             "Date":today
         }
 
-        log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Success", f"Rate: {result['Lowest Rate']}, Carrier: {result['Carrier Name']}",quote_id,"API",today,unique_id,fba_code)
+        log_heyprimo_result(ori_city, ori_state, ori_zip, dest_city, dest_state, dest_zip, qty, "Success", f"Rate: {result['Lowest Rate']}, Carrier: {result['Carrier Name']}",quote_id,"API",today,unique_id,fba_code,"LTL")
         return result
 
     except Exception as e:
         log_heyprimo_result(row.get('Origin City', ''), row.get('Origin State Code', ''), row.get("Origin ZIP", ""), 
                             row.get('Destn City',''), row.get('Destn State Code', ''), row.get("FBA or Destination ZIP", ""), 
-                            row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}",quote_id,"",today,unique_id,fba_code)
+                            row.get("Num Of Pallet", ""), "Failed", f"Exception: {str(e)}",quote_id,"",today,unique_id,fba_code,"LTL")
         return None
 
-def heyprimo_api(row: dict, accessorials = ["APD", "CTO"]):
+def heyprimo_api(row: dict, accessorials = ["APD", "CTO"],fba = True):
     df = pd.read_excel(r"Data/API Data/Heyprimo_output.xlsx")
     fpod_city = row["Origin City"]
     fpod_st_code = row["Origin State Code"]
@@ -214,7 +218,7 @@ def heyprimo_api(row: dict, accessorials = ["APD", "CTO"]):
                 f'Rate: {rows["Rate"]}, Carrier: {rows["Carrier Name"]}',
                 quote_id,
                 "STATIC DATA",
-                rows['Date Modified'],unique_id,fba_code
+                rows['Date Modified'],unique_id,fba_code,"LTL"
             )
 
             return {
@@ -225,4 +229,4 @@ def heyprimo_api(row: dict, accessorials = ["APD", "CTO"]):
             }
         
     # Fallback to API
-    return api(row, accessorials)
+    return api(row, accessorials,fba)

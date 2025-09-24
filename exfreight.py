@@ -19,7 +19,7 @@ def log_to_excel(log_data):
     final_df.to_excel(LOG_FILE, index=False)
 
 
-def api(origin, fba_code, destination, weight, qty,quote_id,unique_id,accessorialslist):
+def api(origin, fba_code, destination, weight, qty,quote_id,unique_id,accessorialslist,fba):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     today = datetime.today().date().strftime("%d-%m-%Y")
     log_data = {
@@ -120,9 +120,15 @@ def api(origin, fba_code, destination, weight, qty,quote_id,unique_id,accessoria
             log_data['Date'] = today
             log_to_excel(log_data)
             return {"error": "No valid rate rows parsed", "raw_response": data}
+        
+        print(rows)
 
         df = pd.DataFrame(rows)
-        filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
+        if fba:
+            filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
+        else:
+            filtered_df = df
+
         best_rate = filtered_df.nsmallest(1, 'Total Charge (USD)').iloc[0]
 
         log_data["Status"] = "Success"
@@ -150,7 +156,7 @@ def api(origin, fba_code, destination, weight, qty,quote_id,unique_id,accessoria
     
 def exfreight_api(origin, fba_code, destination, weight, qty, quote_id,unique_id,
                   accessorialslist=[{"category": "amazon_fba_delivery", "scope": "at_delivery"}, 
-                                    {"category": "ocean_cfs_pickup", "scope": "at_pickup"}]):
+                                    {"category": "ocean_cfs_pickup", "scope": "at_pickup"}],fba = True):
     df = pd.read_excel(r"Data/API Data/exfreight_output.xlsx")
     origin = str(origin).zfill(5)
     destination = str(destination).zfill(5)
@@ -213,5 +219,5 @@ def exfreight_api(origin, fba_code, destination, weight, qty, quote_id,unique_id
             }
 
     # Fallback to API
-    return api(origin, fba_code, destination, weight, qty, quote_id, unique_id,accessorialslist)
+    return api(origin, fba_code, destination, weight, qty, quote_id, unique_id,accessorialslist,fba)
 

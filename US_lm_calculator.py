@@ -95,13 +95,24 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code,
     if not fba or fba == 'false':
         if LiftgateRequired and ResidentialDelivery:
             eaccessorialslist=[{"category": "lift_gate", "scope": "at_delivery"}, {"category": "residential", "scope": "at_delivery"}]
-            accessorials = ["LFO", "RSD"]
+            haccessorials = ["LFO", "RSD"]
+            hfba = False
+            efba = False
         elif ResidentialDelivery:
             eaccessorialslist=[{"category": "residential", "scope": "at_delivery"}]
-            accessorials = ["RSD"]
+            haccessorials = ["RSD"]
+            hfba = False
+            efba = False
+        else:
+            eaccessorialslist = []
+            haccessorials = []
+            hfba = False
+            efba = False
     else:
         eaccessorialslist=[{"category": "amazon_fba_delivery", "scope": "at_delivery"}, {"category": "ocean_cfs_pickup", "scope": "at_pickup"}]
         haccessorials = ["APD", "CTO"]
+        hfba = True
+        efba = True
 
     # Step 1: Get API results
     hp_result = heyprimo_api({
@@ -115,11 +126,11 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code,
         "Num Of Pallet": qty,
         "quote_id":quote_id,
         'unique id':unique_id
-    })
+    },haccessorials,hfba)
 
 
     
-    ef_result = exfreight_api(fpod_zip, fba_code, fba_zip, weight, qty, quote_id, unique_id, eaccessorialslist)
+    ef_result = exfreight_api(fpod_zip, fba_code, fba_zip, weight, qty, quote_id, unique_id, eaccessorialslist,efba)
 
     # Step 2: Parse rates from API safely
     candidates = []
