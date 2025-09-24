@@ -125,7 +125,7 @@ def api(origin, fba_code, destination, weight, qty,quote_id,unique_id,accessoria
 
         df = pd.DataFrame(rows)
         if fba:
-            filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS'])]
+            filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS', 'DCNWY', 'DUPGF', 'DEXLA', 'DABFS'])]
         else:
             filtered_df = df
 
