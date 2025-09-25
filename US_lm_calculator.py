@@ -187,58 +187,6 @@ def ltl_rate(fpod_city, fpod_st_code, fpod_zip, fba_code, fba_city, fba_st_code,
     else:
         return None
     
-def ftl_rate(fpod_zip, fba_code, fba_zip, qty, quote_id,unique_id):
-    lm = pd.read_excel(r"Data/Last Mile Rates (no api).xlsx", "Last Mile Rates (no api)")
-    today = pd.to_datetime(datetime.today().strftime("%d-%m-%Y"), format="%d-%m-%Y")
-    lm["Valid From"] = pd.to_datetime(lm["Valid From"], format="%d-%m-%Y", errors="coerce")
-    lm["Valid To"] = pd.to_datetime(lm["Valid To"], format="%d-%m-%Y", errors="coerce")
-
-    # Separate FTL and FTL53 sheets
-    lm_ftl = lm[lm['Delivery Type'] == "FTL"]
-    lm_ftl53 = lm[lm['Delivery Type'] == "FTL53"]
-
-    ftl_cand = []
-    ftl_match = lm_ftl[
-        (lm_ftl['FPOD ZIP'].astype(str).str.zfill(5) == str(fpod_zip).zfill(5)) &
-        (lm_ftl['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5)) &
-        (lm_ftl['Valid From'] <= today) & (lm_ftl['Valid To'] >= today)
-    ]
-
-    for _, row in ftl_match.iterrows():
-        ftl_cand.append({
-            "Rate Type": "FTL",
-            "Rate": round(float(row['Rate']), 2),
-            "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
-            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
-            "Source":"No API STATIC DATA",
-            "Date": row['Date Modified'].strftime("%d-%m-%Y") if not pd.isna(row['Date Modified']) else ""
-        })
-
-    ftl_jb = jbhunt_api(fpod_zip, fba_code, fba_zip, "11024", quote_id,unique_id,"FTL")
-    ftl_cand.append(ftl_jb)
-
-    ftl53_cand = []
-    ftl53_match = lm_ftl53[
-        (lm_ftl53['FPOD ZIP'].astype(str).str.zfill(5) == str(fpod_zip).zfill(5)) &
-        (lm_ftl53['FBA ZIP'].astype(str).str.zfill(5) == str(fba_zip).zfill(5)) &
-        (lm_ftl53['Valid From'] <= today) & (lm_ftl53['Valid To'] >= today)
-    ]
-
-    for _, row in ftl53_match.iterrows():
-        ftl53_cand.append({
-            "Rate Type": "FTL53",
-            "Rate": round(float(row['Rate']), 2),
-            "Carrier Name": row['Carrier Name'] if not pd.isna(row['Carrier Name']) else "",
-            "Service Provider": row["Broker"] if not pd.isna(row['Broker']) else "",
-            "Source":"No API STATIC DATA",
-            "Date": row['Date Modified'].strftime("%d-%m-%Y") if not pd.isna(row['Date Modified']) else ""
-        })
-
-    ftl53_jb = jbhunt_api(fpod_zip, fba_code, fba_zip, "45000", quote_id,unique_id,"FTL53")
-    ftl53_cand.append(ftl53_jb)
-
-    return ftl_cand, ftl53_cand
-
 def trans_rates(data):
     errors = []
     
@@ -327,31 +275,12 @@ def trans_rates(data):
         except Exception as e:
             errors.append(f"❌ Error fetching LTL rate: {e}")
 
-        try:
-            ftl, ftl53 = ftl_rate(
-                origin_zip, "-", destination_zip,
-                total_pallet_count, "-", unique_id
-            )
-        except Exception as e:
-            errors.append(f"❌ Error fetching FTL/FTL53 rates: {e}")
-
-        try:
-            drayage = jbhunt_api(
-                origin_zip, "-", destination_zip,
-                "45000", "-", unique_id, "Drayage"
-            )
-        except Exception as e:
-            errors.append(f"❌ Error fetching Drayage rate: {e}")
-
     except Exception as e:
         errors.append(f"❌ Unexpected error in trans_rates: {e}")
 
     # --- Return structured results ---
     results = {
         "LTL": ltl,
-        "FTL": ftl,
-        "FTL53": ftl53,
-        "Drayage": drayage,
         "errors": errors
     }
 
@@ -643,68 +572,3 @@ def trans_cal():
                 st.dataframe(response["LTL"], use_container_width=True)
             else:
                 st.info("ℹ️ No LTL rates found.")
-
-        with st.expander("🏗️ Full Truckload (FTL)", expanded=False):
-            if response["FTL"] is not None and not response["FTL"] == {}:
-                st.dataframe(response["FTL"], use_container_width=True)
-            else:
-                st.info("ℹ️ No FTL rates found.")
-
-        with st.expander("📦 Full Truckload 53’", expanded=False):
-            if response["FTL53"] is not None and not response["FTL53"] == {}:
-                st.dataframe(response["FTL53"], use_container_width=True)
-            else:
-                st.info("ℹ️ No FTL53 rates found.")
-
-        with st.expander("🏢 Drayage", expanded=False):
-            if response["Drayage"] is not None and not response["Drayage"] == {}:
-                st.dataframe(response["Drayage"], use_container_width=True)
-            else:
-                st.info("ℹ️ No Drayage rates found.")
-
-
-        #     response = trans_rates(payload)
-        #     result = response["result"]
-        #     errors = response["errors"]
-
-        # elapsed_time = round(time.time() - start_time, 2)
-        # st.success(f"✅ Done in {elapsed_time} seconds")
-
-        # if errors:
-        #     st.warning("⚠️ Some issues were detected while processing:")
-        #     for err in errors:
-        #         st.text(err)
-
-        # if result:
-        #     st.markdown("### 📊 Best Available Rate")
-        #     st.markdown(
-        #         f"""
-        #         <div style="
-        #             text-align:center;
-        #             padding:20px;
-        #             border-radius:12px;
-        #             background:linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-        #             color:white;
-        #             font-size:24px;
-        #             font-weight:bold;">
-        #             💰 ${result.get("Rate","-"):,.2f}
-        #         </div>
-        #         """,
-        #         unsafe_allow_html=True
-        #     )
-
-        #     left, right = st.columns(2)
-        #     with left:
-        #         st.metric("Rate Type", result.get("Rate Type", "-"))
-        #         st.metric("Carrier", result.get("Carrier Name", "-"))
-        #         st.metric("Service Provider", result.get("Service Provider", "-"))
-        #     with right:
-        #         st.metric("Source", result.get("Source", "-"))
-        #         st.metric("Date", result.get("Date", "-"))
-        # else:
-        #     st.error("❌ No valid rates found. Please check inputs.")
-
-
-
-
-

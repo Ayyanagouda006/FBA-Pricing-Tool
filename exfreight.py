@@ -121,8 +121,6 @@ def api(origin, fba_code, destination, weight, qty,quote_id,unique_id,accessoria
             log_to_excel(log_data)
             return {"error": "No valid rate rows parsed", "raw_response": data}
         
-        print(rows)
-
         df = pd.DataFrame(rows)
         if fba:
             filtered_df = df[df['SCAC'].isin(['CNWY', 'UPGF', 'EXLA', 'ABFS', 'DCNWY', 'DUPGF', 'DEXLA', 'DABFS'])]
