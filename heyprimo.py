@@ -93,7 +93,7 @@ def api(row: dict, accessorials,fba):
             "pickupDate": datetime.today().strftime("%Y-%m-%d"),
             "freightInfo": json.dumps([{
                 "qty": qty,
-                "weight": 660,
+                "weight": 1100,
                 "weightType": "each",
                 "length": 48,
                 "width": 40,
